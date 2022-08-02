@@ -39,8 +39,7 @@ class JiraNormalImporter(JiraImporterCommon):
                  "importer_type": "normal"} for project in self._client.get('/project', {"expand": "description"})]
 
     def list_issue_types(self, project_id):
-        statuses = self._client.get("/project/{}/statuses".format(project_id))
-        return statuses
+        return self._client.get(f"/project/{project_id}/statuses")
 
     def import_project(self, project_id, options):
         self.resolve_user_bindings(options)
@@ -56,7 +55,7 @@ class JiraNormalImporter(JiraImporterCommon):
         return project
 
     def _import_project_data(self, project_id, options):
-        project = self._client.get("/project/{}".format(project_id))
+        project = self._client.get(f"/project/{project_id}")
         project_template = ProjectTemplate.objects.get(slug=options['template'])
 
         epic_statuses = OrderedDict()
@@ -188,16 +187,23 @@ class JiraNormalImporter(JiraImporterCommon):
             counter = 0
             offset = 0
             while True:
-                issues = self._client.get("/search", {
-                    "jql": "project={} AND issuetype={}".format(project_id, issue_type['id']),
-                    "startAt": offset,
-                    "fields": "*all",
-                    "expand": "changelog,attachment",
-                })
+                issues = self._client.get(
+                    "/search",
+                    {
+                        "jql": f"project={project_id} AND issuetype={issue_type['id']}",
+                        "startAt": offset,
+                        "fields": "*all",
+                        "expand": "changelog,attachment",
+                    },
+                )
+
                 offset += issues['maxResults']
 
                 for issue in issues['issues']:
-                    issue['fields']['issuelinks'] += self._client.get("/issue/{}/remotelink".format(issue['key']))
+                    issue['fields']['issuelinks'] += self._client.get(
+                        f"/issue/{issue['key']}/remotelink"
+                    )
+
                     assigned_to = users_bindings.get(issue['fields']['assignee']['key'] if issue['fields']['assignee'] else None, None)
                     owner = users_bindings.get(issue['fields']['creator']['key'] if issue['fields']['creator'] else None, self._user)
 
@@ -220,8 +226,9 @@ class JiraNormalImporter(JiraImporterCommon):
                         external_reference=external_reference,
                     )
 
-                    points_value = issue['fields'].get(self.greenhopper_fields.get('points', None), None)
-                    if points_value:
+                    if points_value := issue['fields'].get(
+                        self.greenhopper_fields.get('points', None), None
+                    ):
                         (points, _) = Points.objects.get_or_create(
                             project=project,
                             value=points_value,
@@ -230,11 +237,9 @@ class JiraNormalImporter(JiraImporterCommon):
                                 "order": points_value,
                             }
                         )
-                        RolePoints.objects.filter(user_story=us, role__slug="main").update(points_id=points.id)
                     else:
                         points = Points.objects.get(project=project, value__isnull=True)
-                        RolePoints.objects.filter(user_story=us, role__slug="main").update(points_id=points.id)
-
+                    RolePoints.objects.filter(user_story=us, role__slug="main").update(points_id=points.id)
                     self._import_to_custom_fields(us, issue, options)
 
                     us.ref = issue['key'].split("-")[1]
@@ -262,16 +267,23 @@ class JiraNormalImporter(JiraImporterCommon):
         counter = 0
         offset = 0
         while True:
-            issues = self._client.get("/search", {
-                "jql": "parent={}".format(issue['key']),
-                "startAt": offset,
-                "fields": "*all",
-                "expand": "changelog,attachment",
-            })
+            issues = self._client.get(
+                "/search",
+                {
+                    "jql": f"parent={issue['key']}",
+                    "startAt": offset,
+                    "fields": "*all",
+                    "expand": "changelog,attachment",
+                },
+            )
+
             offset += issues['maxResults']
 
             for issue in issues['issues']:
-                issue['fields']['issuelinks'] += self._client.get("/issue/{}/remotelink".format(issue['key']))
+                issue['fields']['issuelinks'] += self._client.get(
+                    f"/issue/{issue['key']}/remotelink"
+                )
+
                 assigned_to = users_bindings.get(issue['fields']['assignee']['key'] if issue['fields']['assignee'] else None, None)
                 owner = users_bindings.get(issue['fields']['creator']['key'] if issue['fields']['creator'] else None, self._user)
 
@@ -301,7 +313,10 @@ class JiraNormalImporter(JiraImporterCommon):
                 )
                 take_snapshot(task, comment="", user=None, delete=False)
                 for subtask in issue['fields']['subtasks']:
-                    print("WARNING: Ignoring subtask {} because parent isn't a User Story".format(subtask['key']))
+                    print(
+                        f"WARNING: Ignoring subtask {subtask['key']} because parent isn't a User Story"
+                    )
+
                 self._import_comments(task, issue, options)
                 self._import_attachments(task, issue, options)
                 self._import_changelog(project, task, issue, options)
@@ -317,16 +332,23 @@ class JiraNormalImporter(JiraImporterCommon):
             counter = 0
             offset = 0
             while True:
-                issues = self._client.get("/search", {
-                    "jql": "project={} AND issuetype={}".format(project_id, issue_type['id']),
-                    "startAt": offset,
-                    "fields": "*all",
-                    "expand": "changelog,attachment",
-                })
+                issues = self._client.get(
+                    "/search",
+                    {
+                        "jql": f"project={project_id} AND issuetype={issue_type['id']}",
+                        "startAt": offset,
+                        "fields": "*all",
+                        "expand": "changelog,attachment",
+                    },
+                )
+
                 offset += issues['maxResults']
 
                 for issue in issues['issues']:
-                    issue['fields']['issuelinks'] += self._client.get("/issue/{}/remotelink".format(issue['key']))
+                    issue['fields']['issuelinks'] += self._client.get(
+                        f"/issue/{issue['key']}/remotelink"
+                    )
+
                     assigned_to = users_bindings.get(issue['fields']['assignee']['key'] if issue['fields']['assignee'] else None, None)
                     owner = users_bindings.get(issue['fields']['creator']['key'] if issue['fields']['creator'] else None, self._user)
 
@@ -355,7 +377,10 @@ class JiraNormalImporter(JiraImporterCommon):
                     )
                     take_snapshot(taiga_issue, comment="", user=None, delete=False)
                     for subtask in issue['fields']['subtasks']:
-                        print("WARNING: Ignoring subtask {} because parent isn't a User Story".format(subtask['key']))
+                        print(
+                            f"WARNING: Ignoring subtask {subtask['key']} because parent isn't a User Story"
+                        )
+
                     self._import_comments(taiga_issue, issue, options)
                     self._import_attachments(taiga_issue, issue, options)
                     self._import_changelog(project, taiga_issue, issue, options)
@@ -372,16 +397,23 @@ class JiraNormalImporter(JiraImporterCommon):
             counter = 0
             offset = 0
             while True:
-                issues = self._client.get("/search", {
-                    "jql": "project={} AND issuetype={}".format(project_id, issue_type['id']),
-                    "startAt": offset,
-                    "fields": "*all",
-                    "expand": "changelog,attachment",
-                })
+                issues = self._client.get(
+                    "/search",
+                    {
+                        "jql": f"project={project_id} AND issuetype={issue_type['id']}",
+                        "startAt": offset,
+                        "fields": "*all",
+                        "expand": "changelog,attachment",
+                    },
+                )
+
                 offset += issues['maxResults']
 
                 for issue in issues['issues']:
-                    issue['fields']['issuelinks'] += self._client.get("/issue/{}/remotelink".format(issue['key']))
+                    issue['fields']['issuelinks'] += self._client.get(
+                        f"/issue/{issue['key']}/remotelink"
+                    )
+
                     assigned_to = users_bindings.get(issue['fields']['assignee']['key'] if issue['fields']['assignee'] else None, None)
                     owner = users_bindings.get(issue['fields']['creator']['key'] if issue['fields']['creator'] else None, self._user)
 
@@ -411,12 +443,16 @@ class JiraNormalImporter(JiraImporterCommon):
                     )
                     take_snapshot(epic, comment="", user=None, delete=False)
                     for subtask in issue['fields']['subtasks']:
-                        print("WARNING: Ignoring subtask {} because parent isn't a User Story".format(subtask['key']))
+                        print(
+                            f"WARNING: Ignoring subtask {subtask['key']} because parent isn't a User Story"
+                        )
+
                     self._import_comments(epic, issue, options)
                     self._import_attachments(epic, issue, options)
-                    issue_with_changelog = self._client.get("/issue/{}".format(issue['key']), {
-                        "expand": "changelog"
-                    })
+                    issue_with_changelog = self._client.get(
+                        f"/issue/{issue['key']}", {"expand": "changelog"}
+                    )
+
                     self._import_changelog(project, epic, issue_with_changelog, options)
                     counter += 1
 
@@ -428,15 +464,20 @@ class JiraNormalImporter(JiraImporterCommon):
         for issue_type in types:
             offset = 0
             while True:
-                issues = self._client.get("/search", {
-                    "jql": "project={} AND issuetype={}".format(project_id, issue_type['id']),
-                    "startAt": offset
-                })
+                issues = self._client.get(
+                    "/search",
+                    {
+                        "jql": f"project={project_id} AND issuetype={issue_type['id']}",
+                        "startAt": offset,
+                    },
+                )
+
                 offset += issues['maxResults']
 
                 for issue in issues['issues']:
-                    epic_key = issue['fields'][self.greenhopper_fields['link']]
-                    if epic_key:
+                    if epic_key := issue['fields'][
+                        self.greenhopper_fields['link']
+                    ]:
                         epic = project.epics.get(ref=int(epic_key.split("-")[1]))
                         us = project.user_stories.get(ref=int(issue['key'].split("-")[1]))
                         RelatedUserStory.objects.create(

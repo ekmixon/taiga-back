@@ -242,8 +242,7 @@ class GenericAPIView(pagination.PaginationMixin,
                                         'attribute on the view correctly.' %
                                         (self.__class__.__name__, self.lookup_field)))
 
-        obj = get_object_or_404(queryset, **filter_kwargs)
-        return obj
+        return get_object_or_404(queryset, **filter_kwargs)
 
     def get_object_or_none(self):
         try:

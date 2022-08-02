@@ -55,7 +55,7 @@ class Command(BaseCommand):
         else:
             print("Select the project to import:")
             for project in importer.list_projects():
-                print("- {}: {}".format(project['project_id'], project['project_name']))
+                print(f"- {project['project_id']}: {project['project_name']}")
             project_id = input("Project id: ")
 
         users_bindings = {}
@@ -69,7 +69,7 @@ class Command(BaseCommand):
                     pass
 
                 while True:
-                    username_or_email = input("{}: ".format(user['person']['name']))
+                    username_or_email = input(f"{user['person']['name']}: ")
                     if username_or_email == "":
                         break
                     try:

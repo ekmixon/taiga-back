@@ -104,10 +104,7 @@ class LazyPaginator(Paginator):
     def page(self, number):
         number = self.validate_number(number)
         current_per_page = self.get_current_per_page(number)
-        if number == 1:
-            bottom = 0
-        else:
-            bottom = ((number - 2) * self.per_page + self.first_page)
+        bottom = 0 if number == 1 else ((number - 2) * self.per_page + self.first_page)
         top = bottom + current_per_page
         # Retrieve more objects to check if there is a next page.
         objects = list(self.object_list[bottom:top + self.orphans + 1])
@@ -235,7 +232,7 @@ class PaginationMixin(object):
         if page is None:
             return page
 
-        if not "HTTP_X_LAZY_PAGINATION" in self.request.META:
+        if "HTTP_X_LAZY_PAGINATION" not in self.request.META:
             self.headers["x-pagination-count"] = page.paginator.count
 
         self.headers["x-paginated"] = "true"

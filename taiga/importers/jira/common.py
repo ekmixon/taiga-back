@@ -75,21 +75,19 @@ def links_to_richtext(importer, issue, links):
             continue
 
         if importing_project_key == project_key:
-            richtext += "  * This item {} #{}\n".format(action, issue_key)
+            richtext += f"  * This item {action} #{issue_key}\n"
         else:
-            url = importer._client.server + "/projects/{}/issues/{}-{}".format(
-                project_key,
-                project_key,
-                issue_key
+            url = (
+                importer._client.server
+                + f"/projects/{project_key}/issues/{project_key}-{issue_key}"
             )
-            richtext += "  * This item {} [{}-{}]({})\n".format(action, project_key, issue_key, url)
+
+            richtext += f"  * This item {action} [{project_key}-{issue_key}]({url})\n"
 
     for link in links:
         if "object" in link:
-            richtext += "  * [{}]({})\n".format(
-                link['object']['title'] or link['object']['url'],
-                link['object']['url'],
-            )
+            richtext += f"  * [{link['object']['title'] or link['object']['url']}]({link['object']['url']})\n"
+
 
     return richtext
 
@@ -124,9 +122,9 @@ class JiraClient:
         response = requests.get(url, params=query_params, headers=headers, auth=self.oauth)
 
         if response.status_code == 401:
-            raise Exception("Unauthorized: %s at %s" % (response.text, url), response)
+            raise Exception(f"Unauthorized: {response.text} at {url}", response)
         if response.status_code != 200:
-            raise Exception("Resource Unavailable: %s at %s" % (response.text, url), response)
+            raise Exception(f"Resource Unavailable: {response.text} at {url}", response)
 
         return response.json()
 
@@ -144,9 +142,9 @@ class JiraClient:
         response = requests.get(url, params=query_params, headers=headers, auth=self.oauth)
 
         if response.status_code == 401:
-            raise Exception("Unauthorized: %s at %s" % (response.text, url), response)
+            raise Exception(f"Unauthorized: {response.text} at {url}", response)
         if response.status_code != 200:
-            raise Exception("Resource Unavailable: %s at %s" % (response.text, url), response)
+            raise Exception(f"Resource Unavailable: {response.text} at {url}", response)
 
         return response.json()
 
@@ -157,15 +155,19 @@ class JiraClient:
         response = requests.get(absolute_uri, params=query_params, auth=self.oauth)
 
         if response.status_code == 401:
-            raise Exception("Unauthorized: %s at %s" % (response.text, absolute_uri), response)
+            raise Exception(f"Unauthorized: {response.text} at {absolute_uri}", response)
         if response.status_code != 200:
-            raise Exception("Resource Unavailable: %s at %s" % (response.text, absolute_uri), response)
+            raise Exception(
+                f"Resource Unavailable: {response.text} at {absolute_uri}",
+                response,
+            )
+
 
         return response.content
 
     def get_issue_url(self, key):
         (project_key, issue_key) = key.split("-")
-        return self.server + "/projects/{}/issues/{}".format(project_key, key)
+        return self.server + f"/projects/{project_key}/issues/{key}"
 
 
 class JiraImporterCommon:
@@ -209,7 +211,10 @@ class JiraImporterCommon:
         users_bindings = options.get('users_bindings', {})
         offset = 0
         while True:
-            comments = self._client.get("/issue/{}/comment".format(issue['key']), {"startAt": offset})
+            comments = self._client.get(
+                f"/issue/{issue['key']}/comment", {"startAt": offset}
+            )
+
             for comment in comments['comments']:
                 snapshot = take_snapshot(
                     obj,
@@ -227,7 +232,6 @@ class JiraImporterCommon:
                 break
 
     def _create_custom_fields(self, project):
-        custom_fields = []
         for model in [UserStoryCustomAttribute, TaskCustomAttribute, IssueCustomAttribute, EpicCustomAttribute]:
             model.objects.create(
                 name="Due date",
@@ -292,57 +296,67 @@ class JiraImporterCommon:
                 order=1,
                 project=project
             )
-        custom_fields.append({
-            "history_name": "duedate",
-            "jira_field_name": "duedate",
-            "taiga_field_name": "Due date",
-        })
-        custom_fields.append({
-            "history_name": "priority",
-            "jira_field_name": "priority",
-            "taiga_field_name": "Priority",
-            "transform": lambda issue, obj: obj.get('name', None)
-        })
-        custom_fields.append({
-            "history_name": "resolution",
-            "jira_field_name": "resolution",
-            "taiga_field_name": "Resolution",
-            "transform": lambda issue, obj: obj.get('name', None)
-        })
-        custom_fields.append({
-            "history_name": "Resolution date",
-            "jira_field_name": "resolutiondate",
-            "taiga_field_name": "Resolution date",
-        })
-        custom_fields.append({
-            "history_name": "environment",
-            "jira_field_name": "environment",
-            "taiga_field_name": "Environment",
-        })
-        custom_fields.append({
-            "history_name": "Component",
-            "jira_field_name": "components",
-            "taiga_field_name": "Components",
-            "transform": lambda issue, obj: ", ".join([c.get('name', None) for c in obj])
-        })
-        custom_fields.append({
-            "history_name": "Version",
-            "jira_field_name": "versions",
-            "taiga_field_name": "Affects Version/s",
-            "transform": lambda issue, obj: ", ".join([c.get('name', None) for c in obj])
-        })
-        custom_fields.append({
-            "history_name": "Fix Version",
-            "jira_field_name": "fixVersions",
-            "taiga_field_name": "Fix Version/s",
-            "transform": lambda issue, obj: ", ".join([c.get('name', None) for c in obj])
-        })
-        custom_fields.append({
-            "history_name": "Link",
-            "jira_field_name": "issuelinks",
-            "taiga_field_name": "Links",
-            "transform": lambda issue, obj: links_to_richtext(self, issue, obj)
-        })
+        custom_fields = [
+            {
+                "history_name": "duedate",
+                "jira_field_name": "duedate",
+                "taiga_field_name": "Due date",
+            },
+            {
+                "history_name": "priority",
+                "jira_field_name": "priority",
+                "taiga_field_name": "Priority",
+                "transform": lambda issue, obj: obj.get('name', None),
+            },
+            {
+                "history_name": "resolution",
+                "jira_field_name": "resolution",
+                "taiga_field_name": "Resolution",
+                "transform": lambda issue, obj: obj.get('name', None),
+            },
+            {
+                "history_name": "Resolution date",
+                "jira_field_name": "resolutiondate",
+                "taiga_field_name": "Resolution date",
+            },
+            {
+                "history_name": "environment",
+                "jira_field_name": "environment",
+                "taiga_field_name": "Environment",
+            },
+            {
+                "history_name": "Component",
+                "jira_field_name": "components",
+                "taiga_field_name": "Components",
+                "transform": lambda issue, obj: ", ".join(
+                    [c.get('name', None) for c in obj]
+                ),
+            },
+            {
+                "history_name": "Version",
+                "jira_field_name": "versions",
+                "taiga_field_name": "Affects Version/s",
+                "transform": lambda issue, obj: ", ".join(
+                    [c.get('name', None) for c in obj]
+                ),
+            },
+            {
+                "history_name": "Fix Version",
+                "jira_field_name": "fixVersions",
+                "taiga_field_name": "Fix Version/s",
+                "transform": lambda issue, obj: ", ".join(
+                    [c.get('name', None) for c in obj]
+                ),
+            },
+            {
+                "history_name": "Link",
+                "jira_field_name": "issuelinks",
+                "taiga_field_name": "Links",
+                "transform": lambda issue, obj: links_to_richtext(
+                    self, issue, obj
+                ),
+            },
+        ]
 
         greenhopper_fields = {}
         for custom_field in self._client.get("/field"):
@@ -411,7 +425,10 @@ class JiraImporterCommon:
         elif isinstance(obj, Issue):
             custom_att_manager = obj.project.issuecustomattributes
         else:
-            raise NotImplementedError("Not implemented custom attributes for this object ({})".format(obj))
+            raise NotImplementedError(
+                f"Not implemented custom attributes for this object ({obj})"
+            )
+
 
         custom_attributes_values = {}
         for custom_field in self.custom_fields:
@@ -445,7 +462,7 @@ class JiraImporterCommon:
                 )
                 att.attached_file.save(attachment['filename'], ContentFile(data), save=True)
             except Exception:
-                print("ERROR getting attachment url {}".format(attachment['content']))
+                print(f"ERROR getting attachment url {attachment['content']}")
 
 
     def _import_changelog(self, project, obj, issue, options):

@@ -58,11 +58,11 @@ class MentionsPattern(Pattern):
         try:
             user = get_user_model().objects.get(**kwargs)
         except get_user_model().DoesNotExist:
-            return "@{}".format(username)
+            return f"@{username}"
 
-        url = "/profile/{}".format(username)
+        url = f"/profile/{username}"
 
-        link_text = "@{}".format(username)
+        link_text = f"@{username}"
 
         a = etree.Element('a')
         a.text = AtomicString(link_text)

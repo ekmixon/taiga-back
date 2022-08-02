@@ -27,10 +27,14 @@ def get_user_for_application_token(token:str) -> object:
     """
     Given an application token it tries to find an associated user
     """
-    app_token = apps.get_model("external_apps", "ApplicationToken").objects.filter(token=token).first()
-    if not app_token:
+    if (
+        app_token := apps.get_model("external_apps", "ApplicationToken")
+        .objects.filter(token=token)
+        .first()
+    ):
+        return app_token.user
+    else:
         raise exc.NotAuthenticated(_("Invalid token"))
-    return app_token.user
 
 
 def authorize_token(application_id:int, user:object, state:str) -> object:

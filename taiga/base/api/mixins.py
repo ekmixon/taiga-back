@@ -253,8 +253,7 @@ class NestedViewSetMixin(object):
         return self._filter_queryset_by_parents_lookups(super().get_queryset())
 
     def _filter_queryset_by_parents_lookups(self, queryset):
-        parents_query_dict = self._get_parents_query_dict()
-        if parents_query_dict:
+        if parents_query_dict := self._get_parents_query_dict():
             return queryset.filter(**parents_query_dict)
         else:
             return queryset

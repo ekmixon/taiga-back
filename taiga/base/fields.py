@@ -190,15 +190,12 @@ class I18NJSONField(Field):
         return i18n_d
 
     def to_native(self, obj):
-        i18n_obj = self.translate_values(obj)
-        return i18n_obj
+        return self.translate_values(obj)
 
 
 class FileField(Field):
     def to_value(self, value):
-        if value:
-            return value.name
-        return None
+        return value.name if value else None
 
 
 class DateTimeField(Field):
@@ -211,6 +208,6 @@ class DateTimeField(Field):
         if self.format.lower() == ISO_8601:
             ret = value.isoformat()
             if ret.endswith("+00:00"):
-                ret = ret[:-6] + "Z"
+                ret = f"{ret[:-6]}Z"
             return ret
         return value.strftime(self.format)

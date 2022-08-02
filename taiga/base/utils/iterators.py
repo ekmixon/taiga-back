@@ -53,5 +53,4 @@ def iter_queryset(queryset, itersize:int=20):
     paginator = Paginator(queryset, itersize)
     for page_num in paginator.page_range:
         page = paginator.page(page_num)
-        for element in page.object_list:
-            yield element
+        yield from page.object_list

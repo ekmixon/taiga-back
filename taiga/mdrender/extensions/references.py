@@ -53,29 +53,29 @@ class TaigaReferencesPattern(Pattern):
 
         instance = get_instance_by_ref(self.project.id, obj_ref)
         if instance is None or instance.content_object is None:
-            return "#{}".format(obj_ref)
+            return f"#{obj_ref}"
 
         subject = instance.content_object.subject
 
         if instance.content_type.model == "epic":
             html_classes = "reference epic"
-        elif instance.content_type.model == "userstory":
-            html_classes = "reference user-story"
-        elif instance.content_type.model == "task":
-            html_classes = "reference task"
         elif instance.content_type.model == "issue":
             html_classes = "reference issue"
+        elif instance.content_type.model == "task":
+            html_classes = "reference task"
+        elif instance.content_type.model == "userstory":
+            html_classes = "reference user-story"
         else:
-            return "#{}".format(obj_ref)
+            return f"#{obj_ref}"
 
         url = resolve(instance.content_type.model, self.project.slug, obj_ref)
 
-        link_text = "&num;{}".format(obj_ref)
+        link_text = f"&num;{obj_ref}"
 
         a = etree.Element('a')
         a.text = link_text
         a.set('href', url)
-        a.set('title', "#{} {}".format(obj_ref, subject))
+        a.set('title', f"#{obj_ref} {subject}")
         a.set('class', html_classes)
 
         self.md.extracted_data['references'].append(instance.content_object)

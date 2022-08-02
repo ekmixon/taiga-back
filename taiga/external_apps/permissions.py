@@ -27,10 +27,7 @@ class ApplicationPermission(TaigaResourcePermission):
 
 class CanUseToken(PermissionComponent):
     def check_permissions(self, request, view, obj=None):
-        if not obj:
-            return False
-
-        return request.user == obj.user
+        return request.user == obj.user if obj else False
 
 
 class ApplicationTokenPermission(TaigaResourcePermission):

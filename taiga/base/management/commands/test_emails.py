@@ -158,9 +158,10 @@ class Command(BaseCommand):
             "lang": locale,
             "project": Project.objects.all().order_by("?").first(),
             "changer": get_user_model().objects.all().order_by("?").first(),
-            "history_entries": HistoryEntry.objects.all().order_by("?")[0:5],
+            "history_entries": HistoryEntry.objects.all().order_by("?")[:5],
             "user": get_user_model().objects.all().order_by("?").first(),
         }
+
 
         for notification_email in notification_emails:
             model = apps.get_model(*notification_email[0].split("."))

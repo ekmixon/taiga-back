@@ -14,10 +14,9 @@ def update_gitlab_system_user_photo_to_v2(apps, schema_editor):
         user = User.objects.using(db_alias).get(username__startswith="gitlab-",
                                                 is_active=False,
                                                 is_system=True)
-        f = open("taiga/hooks/gitlab/migrations/logo-v2.png", "rb")
-        user.photo.save("logo.png", File(f))
-        user.save()
-        f.close()
+        with open("taiga/hooks/gitlab/migrations/logo-v2.png", "rb") as f:
+            user.photo.save("logo.png", File(f))
+            user.save()
     except User.DoesNotExist:
         pass
 
@@ -31,10 +30,9 @@ def update_gitlab_system_user_photo_to_v1(apps, schema_editor):
         user = User.objects.using(db_alias).get(username__startswith="gitlab-",
                                                 is_active=False,
                                                 is_system=True)
-        f = open("taiga/hooks/gitlab/migrations/logo.png", "rb")
-        user.photo.save("logo.png", File(f))
-        user.save()
-        f.close()
+        with open("taiga/hooks/gitlab/migrations/logo.png", "rb") as f:
+            user.photo.save("logo.png", File(f))
+            user.save()
     except User.DoesNotExist:
         pass
 

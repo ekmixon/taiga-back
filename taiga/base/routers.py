@@ -123,7 +123,7 @@ class SimpleRouter(BaseRouter):
     ]
 
     def __init__(self, trailing_slash=True):
-        self.trailing_slash = trailing_slash and '/' or ''
+        self.trailing_slash = '/' if trailing_slash else ''
         super(SimpleRouter, self).__init__()
 
     def get_default_base_name(self, viewset):
@@ -156,14 +156,13 @@ class SimpleRouter(BaseRouter):
         list_routes = []
         for methodname in dir(viewset):
             attr = getattr(viewset, methodname)
-            httpmethods = getattr(attr, 'bind_to_methods', None)
-            detail = getattr(attr, 'detail', True)
-            if httpmethods:
+            if httpmethods := getattr(attr, 'bind_to_methods', None):
                 if methodname in known_actions:
                     raise ImproperlyConfigured('Cannot use @detail_route or @list_route '
                                                'decorators on method "%s" '
                                                'as it is an existing route' % methodname)
                 httpmethods = [method.lower() for method in httpmethods]
+                detail = getattr(attr, 'detail', True)
                 if detail:
                     detail_routes.append((httpmethods, methodname))
                 else:
@@ -176,23 +175,35 @@ class SimpleRouter(BaseRouter):
                 for httpmethods, methodname in detail_routes:
                     initkwargs = route.initkwargs.copy()
                     initkwargs.update(getattr(viewset, methodname).kwargs)
-                    ret.append(Route(
-                        url=replace_methodname(route.url, methodname),
-                        mapping=dict((httpmethod, methodname) for httpmethod in httpmethods),
-                        name=replace_methodname(route.name, methodname),
-                        initkwargs=initkwargs,
-                    ))
+                    ret.append(
+                        Route(
+                            url=replace_methodname(route.url, methodname),
+                            mapping={
+                                httpmethod: methodname
+                                for httpmethod in httpmethods
+                            },
+                            name=replace_methodname(route.name, methodname),
+                            initkwargs=initkwargs,
+                        )
+                    )
+
             elif isinstance(route, DynamicListRoute):
                 # Dynamic list routes (@list_route decorator)
                 for httpmethods, methodname in list_routes:
                     initkwargs = route.initkwargs.copy()
                     initkwargs.update(getattr(viewset, methodname).kwargs)
-                    ret.append(Route(
-                        url=replace_methodname(route.url, methodname),
-                        mapping=dict((httpmethod, methodname) for httpmethod in httpmethods),
-                        name=replace_methodname(route.name, methodname),
-                        initkwargs=initkwargs,
-                    ))
+                    ret.append(
+                        Route(
+                            url=replace_methodname(route.url, methodname),
+                            mapping={
+                                httpmethod: methodname
+                                for httpmethod in httpmethods
+                            },
+                            name=replace_methodname(route.name, methodname),
+                            initkwargs=initkwargs,
+                        )
+                    )
+
             else:
                 # Standard route
                 ret.append(route)
@@ -205,11 +216,11 @@ class SimpleRouter(BaseRouter):
         return a new mapping which only includes any mappings that
         are actually implemented by the viewset.
         """
-        bound_methods = {}
-        for method, action in method_map.items():
-            if hasattr(viewset, action):
-                bound_methods[method] = action
-        return bound_methods
+        return {
+            method: action
+            for method, action in method_map.items()
+            if hasattr(viewset, action)
+        }
 
     def get_lookup_regex(self, viewset, lookup_prefix=''):
         """
@@ -276,10 +287,11 @@ class DRFDefaultRouter(SimpleRouter):
         """
         Return a view to use as the API root.
         """
-        api_root_dict = {}
         list_name = self.routes[0].name
-        for prefix, viewset, basename in self.registry:
-            api_root_dict[prefix] = list_name.format(basename=basename)
+        api_root_dict = {
+            prefix: list_name.format(basename=basename)
+            for prefix, viewset, basename in self.registry
+        }
 
         class APIRoot(views.APIView):
             _ignore_model_permissions = True

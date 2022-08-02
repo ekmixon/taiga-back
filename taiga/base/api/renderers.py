@@ -124,9 +124,7 @@ class JSONRenderer(BaseRenderer):
         # but if ensure_ascii=False, the return type is underspecified,
         # and may (or may not) be unicode.
         # On python 3.x json.dumps() returns unicode strings.
-        if isinstance(ret, six.text_type):
-            return bytes(ret.encode("utf-8"))
-        return ret
+        return bytes(ret.encode("utf-8")) if isinstance(ret, six.text_type) else ret
 
     def render_to_file(self, data, outputfile, accepted_media_type=None, renderer_context=None):
         """

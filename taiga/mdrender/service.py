@@ -141,18 +141,8 @@ class DiffMatchPatch(diff_match_patch.diff_match_patch):
             splited_text = text.split()
 
             if len(splited_text) > 25:
-                if idx == 0:
-                    # The first is (...)text
-                    first = ""
-                else:
-                    first = " ".join(splited_text[:10])
-
-                if idx != 0 and idx == size - 1:
-                    # The last is text(...)
-                    last = ""
-                else:
-                    last = " ".join(splited_text[-10:])
-
+                first = "" if idx == 0 else " ".join(splited_text[:10])
+                last = "" if idx != 0 and idx == size - 1 else " ".join(splited_text[-10:])
                 return "{}(...){}".format(first, last)
             return text
 

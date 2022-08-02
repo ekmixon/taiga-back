@@ -79,9 +79,7 @@ def remove_files_on_change(sender, instance, **kwargs):
 
 def remove_files_on_delete(sender, instance, **kwargs):
     for field in _get_file_fields(instance):
-        file_to_delete = getattr(instance, field.name)
-
-        if file_to_delete:
+        if file_to_delete := getattr(instance, field.name):
             _delete_file(file_to_delete)
 
 

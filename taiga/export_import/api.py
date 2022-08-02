@@ -73,11 +73,11 @@ class ProjectExporterViewSet(mixins.ImportThrottlingPolicyMixin, GenericViewSet)
             return response.Accepted({"export_id": task.id})
 
         if dump_format == "gzip":
-            path = "exports/{}/{}-{}.json.gz".format(project.pk, project.slug, uuid.uuid4().hex)
+            path = f"exports/{project.pk}/{project.slug}-{uuid.uuid4().hex}.json.gz"
             with default_storage.open(path, mode="wb") as outfile:
                 services.render_project(project, gzip.GzipFile(fileobj=outfile))
         else:
-            path = "exports/{}/{}-{}.json".format(project.pk, project.slug, uuid.uuid4().hex)
+            path = f"exports/{project.pk}/{project.slug}-{uuid.uuid4().hex}.json"
             with default_storage.open(path, mode="wb") as outfile:
                 services.render_project(project, outfile)
 
@@ -100,8 +100,17 @@ class ProjectImporterViewSet(mixins.ImportThrottlingPolicyMixin, CreateModelMixi
 
         # Validate if the project can be imported
         is_private = data.get('is_private', False)
-        total_memberships = len([m for m in data.get("memberships", []) if m.get("email", None) != data["owner"]])
-        total_memberships = total_memberships + 1  # 1 is the owner
+        total_memberships = (
+            len(
+                [
+                    m
+                    for m in data.get("memberships", [])
+                    if m.get("email", None) != data["owner"]
+                ]
+            )
+            + 1
+        )
+
         (enough_slots, error_message) = users_services.has_available_slot_for_new_project(
             self.request.user,
             is_private,
@@ -208,9 +217,7 @@ class ProjectImporterViewSet(mixins.ImportThrottlingPolicyMixin, CreateModelMixi
                                                    "issuecustomattributes",
                                                    validators.IssueCustomAttributeExportValidator)
 
-        # Is there any error?
-        errors = services.store.get_errors()
-        if errors:
+        if errors := services.store.get_errors():
             raise exc.BadRequest(errors)
 
         # Importer process is OK
@@ -227,8 +234,7 @@ class ProjectImporterViewSet(mixins.ImportThrottlingPolicyMixin, CreateModelMixi
 
         milestone = services.store.store_milestone(project, request.DATA.copy())
 
-        errors = services.store.get_errors()
-        if errors:
+        if errors := services.store.get_errors():
             raise exc.BadRequest(errors)
 
         data = serializers.MilestoneExportSerializer(milestone.object).data
@@ -243,8 +249,7 @@ class ProjectImporterViewSet(mixins.ImportThrottlingPolicyMixin, CreateModelMixi
 
         us = services.store.store_user_story(project, request.DATA.copy())
 
-        errors = services.store.get_errors()
-        if errors:
+        if errors := services.store.get_errors():
             raise exc.BadRequest(errors)
 
         data = serializers.UserStoryExportSerializer(us.object).data
@@ -262,8 +267,7 @@ class ProjectImporterViewSet(mixins.ImportThrottlingPolicyMixin, CreateModelMixi
 
         task = services.store.store_task(project, request.DATA.copy())
 
-        errors = services.store.get_errors()
-        if errors:
+        if errors := services.store.get_errors():
             raise exc.BadRequest(errors)
 
         data = serializers.TaskExportSerializer(task.object).data
@@ -281,8 +285,7 @@ class ProjectImporterViewSet(mixins.ImportThrottlingPolicyMixin, CreateModelMixi
 
         issue = services.store.store_issue(project, request.DATA.copy())
 
-        errors = services.store.get_errors()
-        if errors:
+        if errors := services.store.get_errors():
             raise exc.BadRequest(errors)
 
         data = serializers.IssueExportSerializer(issue.object).data
@@ -297,8 +300,7 @@ class ProjectImporterViewSet(mixins.ImportThrottlingPolicyMixin, CreateModelMixi
 
         wiki_page = services.store.store_wiki_page(project, request.DATA.copy())
 
-        errors = services.store.get_errors()
-        if errors:
+        if errors := services.store.get_errors():
             raise exc.BadRequest(errors)
 
         data = serializers.WikiPageExportSerializer(wiki_page.object).data
@@ -313,8 +315,7 @@ class ProjectImporterViewSet(mixins.ImportThrottlingPolicyMixin, CreateModelMixi
 
         wiki_link = services.store.store_wiki_link(project, request.DATA.copy())
 
-        errors = services.store.get_errors()
-        if errors:
+        if errors := services.store.get_errors():
             raise exc.BadRequest(errors)
 
         data = serializers.WikiLinkExportSerializer(wiki_link.object).data
@@ -357,7 +358,7 @@ class ProjectImporterViewSet(mixins.ImportThrottlingPolicyMixin, CreateModelMixi
         is_private = dump.get("is_private", False)
         total_memberships = len([m for m in dump.get("memberships", [])
                                             if m.get("email", None) != dump["owner"]])
-        total_memberships = total_memberships + 1 # 1 is the owner
+        total_memberships += 1
         (enough_slots, error_message) = users_services.has_available_slot_for_new_project(
             user,
             is_private,

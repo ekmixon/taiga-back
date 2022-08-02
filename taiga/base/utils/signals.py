@@ -22,7 +22,7 @@ from contextlib import contextmanager
 @contextmanager
 def without_signals(*disablers):
     for disabler in disablers:
-        if not (isinstance(disabler, list) or isinstance(disabler, tuple)) or len(disabler) == 0:
+        if not isinstance(disabler, (list, tuple)) or len(disabler) == 0:
             raise ValueError("The parameters must be lists of at least one parameter (the signal).")
 
         signal, *ids = disabler

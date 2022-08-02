@@ -81,7 +81,7 @@ def _get_locale_dirs(resources):
 
 def _tx_resource_for_name(name):
     """ Return the Transifex resource name """
-    return "taiga-back.{}".format(name)
+    return f"taiga-back.{name}"
 
 
 def _check_diff(cat_name, base_path):
@@ -152,10 +152,12 @@ def lang_stats(resources=None, languages=None):
     for name, dir_ in locale_dirs:
         print("\nShowing translations stats for '{res}':".format(res=name))
 
-        langs = []
-        for d in os.listdir(dir_):
-            if not d.startswith('_') and os.path.isdir(os.path.join(dir_, d)):
-                langs.append(d)
+        langs = [
+            d
+            for d in os.listdir(dir_)
+            if not d.startswith('_') and os.path.isdir(os.path.join(dir_, d))
+        ]
+
         langs = sorted(langs)
 
         for lang in langs:
@@ -304,7 +306,7 @@ You need transifex-client, install it.
         help="limit operation to the specified languages")
     options = parser.parse_args()
 
-    if options.cmd[0] in RUNABLE_SCRIPTS.keys():
+    if options.cmd[0] in RUNABLE_SCRIPTS:
         eval(options.cmd[0])(options.resources, options.languages)
     else:
-        print("Available commands are: {}".format(", ".join(RUNABLE_SCRIPTS.keys())))
+        print(f'Available commands are: {", ".join(RUNABLE_SCRIPTS.keys())}')

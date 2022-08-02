@@ -65,14 +65,12 @@ class JSONEncoder(json.JSONEncoder):
         # http://ecma-international.org/ecma-262/5.1/#sec-15.9.1.15
         if isinstance(o, Promise):
             return force_text(o)
-        # elif isinstance(o, CallableBool):
-        #     return bool(o)
         elif isinstance(o, datetime.datetime):
             r = o.isoformat()
             if o.microsecond:
                 r = r[:23] + r[26:]
             if r.endswith("+00:00"):
-                r = r[:-6] + "Z"
+                r = f"{r[:-6]}Z"
             return r
         elif isinstance(o, datetime.date):
             return o.isoformat()
@@ -97,7 +95,7 @@ class JSONEncoder(json.JSONEncoder):
             except:
                 pass
         elif hasattr(o, "__iter__"):
-            return [i for i in o]
+            return list(o)
 
         return super(JSONEncoder, self).default(o)
 

@@ -36,10 +36,7 @@ class HasProjectPerm(PermissionComponent):
 
 class IsObjectOwner(PermissionComponent):
     def check_permissions(self, request, view, obj=None):
-        if obj.owner is None:
-            return False
-
-        return obj.owner == request.user
+        return False if obj.owner is None else obj.owner == request.user
 
 
 ######################################################################

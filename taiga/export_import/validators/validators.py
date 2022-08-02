@@ -181,9 +181,7 @@ class BaseCustomAttributesValuesExportValidator(validators.ModelValidator):
         if type(data_values) is not dict:
             raise ValidationError(_("Invalid content. It must be {\"key\": \"value\",...}"))
 
-        # Values keys must be in the container object project
-        data_container = attrs.get(self._container_field, None)
-        if data_container:
+        if data_container := attrs.get(self._container_field, None):
             project_id = data_container.project_id
         elif self.object:
             project_id = getattr(self.object, self._container_field).project_id

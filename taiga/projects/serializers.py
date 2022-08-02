@@ -412,10 +412,7 @@ class ProjectSerializer(serializers.LightSerializer):
 
     def get_my_homepage(self, obj):
         assert hasattr(obj, "my_homepage_attr"), "instance must have a my_homepage_attr attribute"
-        if obj.my_homepage_attr is None:
-            return False
-
-        return obj.my_homepage_attr
+        return False if obj.my_homepage_attr is None else obj.my_homepage_attr
 
 
 class ProjectDetailSerializer(ProjectSerializer):
@@ -452,10 +449,7 @@ class ProjectDetailSerializer(ProjectSerializer):
 
     def get_milestones(self, obj):
         assert hasattr(obj, "milestones_attr"), "instance must have a milestones_attr attribute"
-        if obj.milestones_attr is None:
-            return []
-
-        return obj.milestones_attr
+        return [] if obj.milestones_attr is None else obj.milestones_attr
 
     def to_value(self, instance):
         # Name attributes must be translated
@@ -470,7 +464,7 @@ class ProjectDetailSerializer(ProjectSerializer):
                      "issue_custom_attributes_attr", "roles_attr",
                      "swimlanes_attr"]:
 
-            assert hasattr(instance, attr), "instance must have a {} attribute".format(attr)
+            assert hasattr(instance, attr), f"instance must have a {attr} attribute"
             val = getattr(instance, attr)
             if val is None:
                 continue
@@ -480,17 +474,17 @@ class ProjectDetailSerializer(ProjectSerializer):
 
         ret = super().to_value(instance)
 
-        admin_fields = [
-            "epics_csv_uuid", "userstories_csv_uuid", "tasks_csv_uuid", "issues_csv_uuid",
-            "is_private_extra_info", "max_memberships", "transfer_token",
-        ]
-
         is_admin_user = False
         if "request" in self.context:
             user = self.context["request"].user
             is_admin_user = permissions_services.is_project_admin(user, instance)
 
         if not is_admin_user:
+            admin_fields = [
+                "epics_csv_uuid", "userstories_csv_uuid", "tasks_csv_uuid", "issues_csv_uuid",
+                "is_private_extra_info", "max_memberships", "transfer_token",
+            ]
+
             for admin_field in admin_fields:
                 del(ret[admin_field])
 
@@ -504,10 +498,7 @@ class ProjectDetailSerializer(ProjectSerializer):
         return MembershipDictSerializer([m for m in obj.members_attr if m['id'] is not None], many=True).data
 
     def get_total_memberships(self, obj):
-        if obj.members_attr is None:
-            return 0
-
-        return len(obj.members_attr)
+        return 0 if obj.members_attr is None else len(obj.members_attr)
 
     def get_is_out_of_owner_limits(self, obj):
         assert hasattr(obj, "private_projects_same_owner_attr"), ("instance must have a private_projects_same"
@@ -681,10 +672,7 @@ class ProjectLightSerializer(serializers.LightSerializer):
 
     def get_my_homepage(self, obj):
         assert hasattr(obj, "my_homepage_attr"), "instance must have a my_homepage_attr attribute"
-        if obj.my_homepage_attr is None:
-            return False
-
-        return obj.my_homepage_attr
+        return False if obj.my_homepage_attr is None else obj.my_homepage_attr
 
 
 ######################################################

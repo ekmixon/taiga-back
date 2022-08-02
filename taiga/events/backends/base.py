@@ -51,8 +51,8 @@ def get_events_backend(path:str=None, options:dict=None):
     if path is None:
         path = getattr(settings, "EVENTS_PUSH_BACKEND", None)
 
-        if path is None:
-            raise ImproperlyConfigured("Events push system not configured")
+    if path is None:
+        raise ImproperlyConfigured("Events push system not configured")
 
     if options is None:
         options = getattr(settings, "EVENTS_PUSH_BACKEND_OPTIONS", {})

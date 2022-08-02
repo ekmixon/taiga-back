@@ -68,7 +68,7 @@ class TrelloClient:
 
         if uri_path[0] == '/':
             uri_path = uri_path[1:]
-        url = 'https://api.trello.com/1/%s' % uri_path
+        url = f'https://api.trello.com/1/{uri_path}'
 
         response = requests.get(url, params=query_params, headers=headers, auth=self.oauth)
 
@@ -126,8 +126,14 @@ class TrelloImporter:
 
     def list_users(self, project_id):
         members = []
-        for member in self._client.get("/board/{}/members/all".format(project_id), {"fields": "id"}):
-            user = self._client.get("/member/{}".format(member['id']), {"fields": "id,fullName,email,avatarSource,avatarHash,gravatarHash"})
+        for member in self._client.get(f"/board/{project_id}/members/all", {"fields": "id"}):
+            user = self._client.get(
+                f"/member/{member['id']}",
+                {
+                    "fields": "id,fullName,email,avatarSource,avatarHash,gravatarHash"
+                },
+            )
+
             avatar = None
             try:
                 if user['avatarSource'] == "gravatar" and user['gravatarHash']:
@@ -154,7 +160,7 @@ class TrelloImporter:
 
     def import_project(self, project_id, options):
         data = self._client.get(
-            "/board/{}".format(project_id),
+            f"/board/{project_id}",
             {
                 "fields": "name,desc",
                 "cards": "all",
@@ -169,8 +175,9 @@ class TrelloImporter:
                 "checklist_fields": "name",
                 "organization": "true",
                 "organization_fields": "logoHash",
-            }
+            },
         )
+
 
         project = self._import_project_data(data, options)
         self._import_user_stories_data(data, project, options)
@@ -185,38 +192,41 @@ class TrelloImporter:
         statuses = board['lists']
         project_template = ProjectTemplate.objects.get(slug=options.get('template', "kanban"))
         project_template.us_statuses = []
-        counter = 0
-        for us_status in statuses:
+        for counter, us_status in enumerate(statuses):
             if counter == 0:
                 project_template.default_options["us_status"] = us_status['name']
 
-            counter += 1
             if us_status['name'] not in [s['name'] for s in project_template.us_statuses]:
-                project_template.us_statuses.append({
-                    "name": us_status['name'],
-                    "slug": slugify(us_status['name']),
-                    "is_closed": False,
-                    "is_archived": True if us_status['closed'] else False,
-                    "color": "#999999",
-                    "wip_limit": None,
-                    "order": us_status['pos'],
-                })
+                project_template.us_statuses.append(
+                    {
+                        "name": us_status['name'],
+                        "slug": slugify(us_status['name']),
+                        "is_closed": False,
+                        "is_archived": bool(us_status['closed']),
+                        "color": "#999999",
+                        "wip_limit": None,
+                        "order": us_status['pos'],
+                    }
+                )
 
-        project_template.task_statuses = []
-        project_template.task_statuses.append({
-            "name": "Incomplete",
-            "slug": "incomplete",
-            "is_closed": False,
-            "color": "#ff8a84",
-            "order": 1,
-        })
-        project_template.task_statuses.append({
-            "name": "Complete",
-            "slug": "complete",
-            "is_closed": True,
-            "color": "#669900",
-            "order": 2,
-        })
+
+        project_template.task_statuses = [
+            {
+                "name": "Incomplete",
+                "slug": "incomplete",
+                "is_closed": False,
+                "color": "#ff8a84",
+                "order": 1,
+            },
+            {
+                "name": "Complete",
+                "slug": "complete",
+                "is_closed": True,
+                "color": "#669900",
+                "order": 2,
+            },
+        ]
+
         project_template.default_options["task_status"] = "Incomplete"
         project_template.roles.append({
             "name": "Trello",
@@ -279,9 +289,7 @@ class TrelloImporter:
 
             tags = []
             for tag in card['labels']:
-                name = tag['name']
-                if not name:
-                    name = tag['color']
+                name = tag['name'] or tag['color']
                 name = name.lower()
                 tags.append(name)
 
@@ -309,8 +317,7 @@ class TrelloImporter:
 
             if len(card['idMembers']) > 1:
                 for watcher in card['idMembers'][1:]:
-                    watcher_user = users_bindings.get(watcher, None)
-                    if watcher_user:
+                    if watcher_user := users_bindings.get(watcher, None):
                         us.add_watcher(watcher_user)
 
             if card['due']:
@@ -367,20 +374,21 @@ class TrelloImporter:
         ]
 
         actions = self._client.get(
-            "/card/{}/actions".format(card['id']),
+            f"/card/{card['id']}/actions",
             {
                 "filter": ",".join(included_actions),
                 "limit": "1000",
                 "memberCreator": "true",
                 "memberCreator_fields": "fullName",
-            }
+            },
         )
+
 
         while actions:
             for action in actions:
                 self._import_action(us, action, statuses, options)
             actions = self._client.get(
-                "/card/{}/actions".format(card['id']),
+                f"/card/{card['id']}/actions",
                 {
                     "filter": ",".join(included_actions),
                     "limit": "1000",
@@ -388,7 +396,7 @@ class TrelloImporter:
                     "before": action['date'],
                     "memberCreator": "true",
                     "memberCreator_fields": "fullName",
-                }
+                },
             )
 
     def _import_action(self, us, action, statuses, options):
@@ -435,8 +443,9 @@ class TrelloImporter:
             return None
 
         user = {"pk": None, "name": action.get('memberCreator', {}).get('fullName', None)}
-        taiga_user = users_bindings.get(action.get('memberCreator', {}).get('id', None), None)
-        if taiga_user:
+        if taiga_user := users_bindings.get(
+            action.get('memberCreator', {}).get('id', None), None
+        ):
             user = {"pk": taiga_user.id, "name": taiga_user.get_full_name()}
 
         result = {
@@ -449,19 +458,11 @@ class TrelloImporter:
 
         if action['type'] == "commentCard":
             result['comment'] = str(action['data']['text'])
-        elif action['type'] == "convertToCardFromCheckItem":
-            UserStory.objects.filter(id=us.id, created_date__gt=action['date']).update(
-                created_date=action['date'],
-                owner=users_bindings.get(action["idMemberCreator"], self._user)
-            )
-            result['hist_type'] = HistoryType.create
-        elif action['type'] == "copyCommentCard":
-            UserStory.objects.filter(id=us.id, created_date__gt=action['date']).update(
-                created_date=action['date'],
-                owner=users_bindings.get(action["idMemberCreator"], self._user)
-            )
-            result['hist_type'] = HistoryType.create
-        elif action['type'] == "createCard":
+        elif action['type'] in [
+            "convertToCardFromCheckItem",
+            "copyCommentCard",
+            "createCard",
+        ]:
             UserStory.objects.filter(id=us.id, created_date__gt=action['date']).update(
                 created_date=action['date'],
                 owner=users_bindings.get(action["idMemberCreator"], self._user)
@@ -533,8 +534,7 @@ class TrelloImporter:
         session = OAuth1Session(client_key=api_key, client_secret=api_secret,
                                 resource_owner_key=oauth_token, resource_owner_secret=oauth_token_secret,
                                 verifier=oauth_verifier)
-        access_token = session.fetch_access_token(access_token_url)
-        return access_token
+        return session.fetch_access_token(access_token_url)
 
     def _ensure_hex_color(self, color):
         if color is None:

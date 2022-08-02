@@ -57,10 +57,7 @@ class Session(BaseAuthentication):
         http_request = request._request
         user = getattr(http_request, 'user', None)
 
-        if not user or not user.is_active:
-            return None
-
-        return (user, None)
+        return None if not user or not user.is_active else (user, None)
 
 
 class Token(BaseAuthentication):

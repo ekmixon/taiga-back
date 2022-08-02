@@ -80,7 +80,6 @@ def save_in_bulk(instances, callback=None, precall=None, **save_options):
     :params callback: Callback to call after each save.
     :params save_options: Additional options to use when saving each instance.
     """
-    ret = []
     if callback is None:
         callback = functions.noop
 
@@ -96,7 +95,7 @@ def save_in_bulk(instances, callback=None, precall=None, **save_options):
         instance.save(**save_options)
         callback(instance, created=created)
 
-    return ret
+    return []
 
 
 @transaction.atomic
@@ -218,13 +217,11 @@ def to_tsquery(term):
                         continue
                     if paren_count == 0:
                         continue
-                    if last in magic_values and last != "(":
+                    if last in magic_values:
                         res.pop()
                 elif bit == "|" and last == "&":
                     res.pop()
-                elif bit == "!":
-                    pass
-                elif bit == "(":
+                elif bit in ["!", "("]:
                     pass
                 elif last in magic_values or not last:
                     continue

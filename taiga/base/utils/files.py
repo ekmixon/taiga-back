@@ -28,7 +28,7 @@ from taiga.base.utils.iterators import split_by_n
 def get_file_path(instance, filename, base_path):
     basename = path.basename(filename).lower()
     base, ext = path.splitext(basename)
-    base = slugify(unidecode(base))[0:100]
+    base = slugify(unidecode(base))[:100]
     basename = "".join([base, ext])
 
     hs = hashlib.sha256()

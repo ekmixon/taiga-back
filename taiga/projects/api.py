@@ -363,11 +363,10 @@ class ProjectViewSet(LikedResourceMixin, HistoryResourceMixin,
         if request.method == "GET":
             return response.Ok(modules_config.config)
 
-        else:
-            self.pre_conditions_on_save(project)
-            modules_config.config.update(request.DATA)
-            modules_config.save()
-            return response.NoContent()
+        self.pre_conditions_on_save(project)
+        modules_config.config.update(request.DATA)
+        modules_config.save()
+        return response.NoContent()
 
     @detail_route(methods=["GET"])
     def stats(self, request, pk=None):
@@ -501,15 +500,14 @@ class ProjectViewSet(LikedResourceMixin, HistoryResourceMixin,
 
     def _set_base_permissions(self, obj):
         update_permissions = False
-        if not obj.id:
-            if not obj.is_private:
-                # Creating a public project
-                update_permissions = True
-        else:
+        if obj.id:
             if self.get_object().is_private != obj.is_private:
                 # Changing project public state
                 update_permissions = True
 
+        elif not obj.is_private:
+            # Creating a public project
+            update_permissions = True
         if update_permissions:
             permissions_services.set_base_permissions_for_project(obj)
 
@@ -594,7 +592,7 @@ class EpicStatusViewSet(MoveOnDestroyMixin, BlockedByProjectMixin,
 
     def create(self, request, *args, **kwargs):
         project_id = request.DATA.get("project", 0)
-        with advisory_lock("epic-status-creation-{}".format(project_id)):
+        with advisory_lock(f"epic-status-creation-{project_id}"):
             return super().create(request, *args, **kwargs)
 
 
@@ -616,7 +614,7 @@ class UserStoryStatusViewSet(MoveOnDestroyMixin, BlockedByProjectMixin,
 
     def create(self, request, *args, **kwargs):
         project_id = request.DATA.get("project", 0)
-        with advisory_lock("epic-user-story-status-creation-{}".format(project_id)):
+        with advisory_lock(f"epic-user-story-status-creation-{project_id}"):
             return super().create(request, *args, **kwargs)
 
     def move_on_destroy_reorder_after_moved(self, moved_to_obj, moved_objs_queryset):
@@ -644,7 +642,7 @@ class PointsViewSet(MoveOnDestroyMixin, BlockedByProjectMixin,
 
     def create(self, request, *args, **kwargs):
         project_id = request.DATA.get("project", 0)
-        with advisory_lock("points-creation-{}".format(project_id)):
+        with advisory_lock(f"points-creation-{project_id}"):
             return super().create(request, *args, **kwargs)
 
 
@@ -663,7 +661,7 @@ class SwimlaneViewSet(MoveOnDestroySwimlaneMixin, BlockedByProjectMixin,
 
     def create(self, request, *args, **kwargs):
         project_id = request.DATA.get("project", 0)
-        with advisory_lock("swimlane-creation-{}".format(project_id)):
+        with advisory_lock(f"swimlane-creation-{project_id}"):
             return super().create(request, *args, **kwargs)
 
     def post_save(self, object, created=False):
@@ -705,7 +703,7 @@ class UserStoryDueDateViewSet(BlockedByProjectMixin, ModelCrudViewSet):
 
     def create(self, request, *args, **kwargs):
         project_id = request.DATA.get("project", 0)
-        with advisory_lock("user-story-due-date-creation-{}".format(project_id)):
+        with advisory_lock(f"user-story-due-date-creation-{project_id}"):
             return super().create(request, *args, **kwargs)
 
     def pre_delete(self, obj):
@@ -766,7 +764,7 @@ class TaskStatusViewSet(MoveOnDestroyMixin, BlockedByProjectMixin,
 
     def create(self, request, *args, **kwargs):
         project_id = request.DATA.get("project", 0)
-        with advisory_lock("task-status-creation-{}".format(project_id)):
+        with advisory_lock(f"task-status-creation-{project_id}"):
             return super().create(request, *args, **kwargs)
 
 
@@ -781,7 +779,7 @@ class TaskDueDateViewSet(BlockedByProjectMixin, ModelCrudViewSet):
 
     def create(self, request, *args, **kwargs):
         project_id = request.DATA.get("project", 0)
-        with advisory_lock("task-due-date-creation-{}".format(project_id)):
+        with advisory_lock(f"task-due-date-creation-{project_id}"):
             return super().create(request, *args, **kwargs)
 
     def pre_delete(self, obj):
@@ -843,7 +841,7 @@ class SeverityViewSet(MoveOnDestroyMixin, BlockedByProjectMixin,
 
     def create(self, request, *args, **kwargs):
         project_id = request.DATA.get("project", 0)
-        with advisory_lock("severity-creation-{}".format(project_id)):
+        with advisory_lock(f"severity-creation-{project_id}"):
             return super().create(request, *args, **kwargs)
 
 
@@ -864,7 +862,7 @@ class PriorityViewSet(MoveOnDestroyMixin, BlockedByProjectMixin,
 
     def create(self, request, *args, **kwargs):
         project_id = request.DATA.get("project", 0)
-        with advisory_lock("priority-creation-{}".format(project_id)):
+        with advisory_lock(f"priority-creation-{project_id}"):
             return super().create(request, *args, **kwargs)
 
 
@@ -885,7 +883,7 @@ class IssueTypeViewSet(MoveOnDestroyMixin, BlockedByProjectMixin,
 
     def create(self, request, *args, **kwargs):
         project_id = request.DATA.get("project", 0)
-        with advisory_lock("issue-type-creation-{}".format(project_id)):
+        with advisory_lock(f"issue-type-creation-{project_id}"):
             return super().create(request, *args, **kwargs)
 
 
@@ -907,7 +905,7 @@ class IssueStatusViewSet(MoveOnDestroyMixin, BlockedByProjectMixin,
 
     def create(self, request, *args, **kwargs):
         project_id = request.DATA.get("project", 0)
-        with advisory_lock("issue-status-creation-{}".format(project_id)):
+        with advisory_lock(f"issue-status-creation-{project_id}"):
             return super().create(request, *args, **kwargs)
 
 
@@ -922,7 +920,7 @@ class IssueDueDateViewSet(BlockedByProjectMixin, ModelCrudViewSet):
 
     def create(self, request, *args, **kwargs):
         project_id = request.DATA.get("project", 0)
-        with advisory_lock("issue-due-date-creation-{}".format(project_id)):
+        with advisory_lock(f"issue-due-date-creation-{project_id}"):
             return super().create(request, *args, **kwargs)
 
     def pre_delete(self, obj):
@@ -1052,7 +1050,7 @@ class MembershipViewSet(BlockedByProjectMixin, ModelCrudViewSet):
             self._check_if_project_can_have_more_memberships(project, total_new_memberships)
 
         try:
-            with advisory_lock("membership-creation-{}".format(project.id)):
+            with advisory_lock(f"membership-creation-{project.id}"):
                 members = services.create_members_in_bulk(data["bulk_memberships"],
                                                           project=project,
                                                           invitation_extra_text=invitation_extra_text,
@@ -1096,14 +1094,15 @@ class MembershipViewSet(BlockedByProjectMixin, ModelCrudViewSet):
         if private_only:
             memberships = memberships.filter(project__is_private=True)
 
-        errors = []
-        for membership in memberships:
-            if not services.can_user_leave_project(user, membership.project):
-                errors.append(membership.project.name)
+        if errors := [
+            membership.project.name
+            for membership in memberships
+            if not services.can_user_leave_project(user, membership.project)
+        ]:
+            error = _(
+                f"""This user can't be removed from the following projects, because that would leave them without any active admin: {", ".join(errors)}."""
+            )
 
-        if len(errors) > 0:
-            error = _("This user can't be removed from the following projects, because that would "
-                      "leave them without any active admin: {}.".format(", ".join(errors)))
             return response.BadRequest(error)
 
         memberships.delete()

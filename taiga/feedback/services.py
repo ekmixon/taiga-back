@@ -20,9 +20,7 @@ from taiga.base.mails import mail_builder
 
 
 def send_feedback(feedback_entry, extra, reply_to=[]):
-    support_email = settings.FEEDBACK_EMAIL
-
-    if support_email:
+    if support_email := settings.FEEDBACK_EMAIL:
         reply_to.append(support_email)
 
         ctx = {

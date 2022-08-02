@@ -21,6 +21,4 @@ from taiga.mdrender.service import render
 
 @library.global_function
 def mdrender(project, text) -> str:
-    if text:
-        return Markup(render(project, text))
-    return ""
+    return Markup(render(project, text)) if text else ""

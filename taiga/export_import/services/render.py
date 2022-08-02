@@ -57,7 +57,7 @@ def render_project(project, outfile, chunk_size=8190):
                 value = value.select_related('severity', 'priority', 'type')
             value = value.prefetch_related('history_entry', 'attachments')
 
-            outfile.write('"{}": [\n'.format(field_name).encode())
+            outfile.write(f'"{field_name}": [\n'.encode())
 
             first_item = True
             for item in value.iterator():
@@ -79,7 +79,7 @@ def render_project(project, outfile, chunk_size=8190):
             else:
                 attr = getattr(project, field_name)
                 value = field.to_value(attr)
-            outfile.write('"{}": {}'.format(field_name, json.dumps(value)).encode())
+            outfile.write(f'"{field_name}": {json.dumps(value)}'.encode())
 
     # Generate the timeline
     outfile.write(b',\n"timeline": [\n')

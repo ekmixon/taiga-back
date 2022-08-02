@@ -73,7 +73,7 @@ class Command(BaseCommand):
                 rtoken_secret,
                 True
             )
-            print("Auth token: {}".format(json.dumps(token)))
+            print(f"Auth token: {json.dumps(token)}")
 
 
         if options.get('project_type', None) is None:
@@ -96,7 +96,7 @@ class Command(BaseCommand):
         else:
             print("Select the project to import:")
             for project in importer.list_projects():
-                print("- {}: {}".format(project['id'], project['name']))
+                print(f"- {project['id']}: {project['name']}")
             project_id = input("Project id or key: ")
 
         users_bindings = {}
@@ -110,7 +110,7 @@ class Command(BaseCommand):
                     pass
 
                 while True:
-                    username_or_email = input("{}: ".format(user['full_name']))
+                    username_or_email = input(f"{user['full_name']}: ")
                     if username_or_email == "":
                         break
                     try:
@@ -141,7 +141,7 @@ class Command(BaseCommand):
                         types_bindings['task'].append(issue_type)
                         break
 
-                    taiga_type = input("{}: ".format(issue_type['name']))
+                    taiga_type = input(f"{issue_type['name']}: ")
                     if taiga_type not in ['epic', 'us', 'issue']:
                         print("use a valid taiga type (epic, us, issue)")
                         continue

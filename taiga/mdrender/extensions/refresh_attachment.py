@@ -63,5 +63,5 @@ class RefreshAttachmentTreeprocessor(Treeprocessor):
 
                 # Substitute url
                 frag = generate_refresh_fragment(attachment, type_)
-                new_url = "{}#{}".format(attachment.attached_file.url, frag)
+                new_url = f"{attachment.attached_file.url}#{frag}"
                 el.set(attr, new_url)

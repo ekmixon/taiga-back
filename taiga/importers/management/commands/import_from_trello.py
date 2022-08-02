@@ -45,11 +45,11 @@ class Command(BaseCommand):
             token = options.get('token')
         else:
             (oauth_token, oauth_token_secret, url) = TrelloImporter.get_auth_url()
-            print("Go to here and come with your token: {}".format(url))
+            print(f"Go to here and come with your token: {url}")
             oauth_verifier = input("Code: ")
             access_data = TrelloImporter.get_access_token(oauth_token, oauth_token_secret, oauth_verifier)
             token = access_data['oauth_token']
-            print("Access token: {}".format(token))
+            print(f"Access token: {token}")
         importer = TrelloImporter(admin, token)
 
         if options.get('project_id', None):
@@ -57,7 +57,7 @@ class Command(BaseCommand):
         else:
             print("Select the project to import:")
             for project in importer.list_projects():
-                print("- {}: {}".format(project['id'], project['name']))
+                print(f"- {project['id']}: {project['name']}")
             project_id = input("Project id: ")
 
         users_bindings = {}
@@ -65,7 +65,7 @@ class Command(BaseCommand):
             print("Add the username or email for next trello users:")
             for user in importer.list_users(project_id):
                 while True:
-                    username_or_email = input("{}: ".format(user['fullName']))
+                    username_or_email = input(f"{user['fullName']}: ")
                     if username_or_email == "":
                         break
                     try:

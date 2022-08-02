@@ -41,13 +41,14 @@ class JiraImporterViewSet(viewsets.ViewSet):
     def _get_token(self, request):
         token_data = request.DATA.get('token', "").split(".")
 
-        token = {
+        return {
             "access_token": token_data[0],
             "access_token_secret": token_data[1],
             "key_cert": settings.IMPORTERS.get('jira', {}).get('cert', None),
-            "consumer_key": settings.IMPORTERS.get('jira', {}).get('consumer_key', None)
+            "consumer_key": settings.IMPORTERS.get('jira', {}).get(
+                'consumer_key', None
+            ),
         }
-        return token
 
     @list_route(methods=["POST"])
     def list_users(self, request, *args, **kwargs):
@@ -130,11 +131,7 @@ class JiraImporterViewSet(viewsets.ViewSet):
             importer = JiraAgileImporter(request.user, url, token)
         else:
             project_type = request.DATA.get("project_type", "scrum")
-            if project_type == "kanban":
-                options['template'] = "kanban"
-            else:
-                options['template'] = "scrum"
-
+            options['template'] = "kanban" if project_type == "kanban" else "scrum"
             importer = JiraNormalImporter(request.user, url, token)
 
             types_bindings = {

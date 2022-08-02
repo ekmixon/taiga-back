@@ -11,7 +11,7 @@ import markdown
 class AutomailPattern(markdown.inlinepatterns.Pattern):
     def handleMatch(self, m):
         el = markdown.util.etree.Element("a")
-        el.set('href', self.unescape('mailto:' + m.group(2)))
+        el.set('href', self.unescape(f'mailto:{m.group(2)}'))
         el.text = markdown.util.AtomicString(m.group(2))
         return el
 

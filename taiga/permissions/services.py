@@ -45,13 +45,7 @@ def _get_object_project(obj):
 
 def is_project_owner(user, obj):
     project = _get_object_project(obj)
-    if project is None:
-        return False
-
-    if user.id == project.owner_id:
-        return True
-
-    return False
+    return False if project is None else user.id == project.owner_id
 
 
 def is_project_admin(user, obj):
@@ -63,10 +57,7 @@ def is_project_admin(user, obj):
         return False
 
     membership = _get_user_project_membership(user, project)
-    if membership and membership.is_admin:
-        return True
-
-    return False
+    return bool(membership and membership.is_admin)
 
 
 def user_has_perm(user, perm, obj=None, cache="user"):
@@ -75,10 +66,11 @@ def user_has_perm(user, perm, obj=None, cache="user"):
     in cache
     """
     project = _get_object_project(obj)
-    if not project:
-        return False
-
-    return perm in get_user_project_permissions(user, project, cache=cache)
+    return (
+        perm in get_user_project_permissions(user, project, cache=cache)
+        if project
+        else False
+    )
 
 
 def _get_membership_permissions(membership):
@@ -102,7 +94,7 @@ def calculate_permissions(is_authenticated=False, is_superuser=False, is_member=
         else:
             admins_permissions = []
             members_permissions = []
-        members_permissions = members_permissions + role_permissions
+        members_permissions += role_permissions
         public_permissions = public_permissions if public_permissions is not None else []
         anon_permissions = anon_permissions if anon_permissions is not None else []
     elif is_authenticated:

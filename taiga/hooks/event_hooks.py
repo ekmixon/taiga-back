@@ -118,9 +118,7 @@ class BaseIssueEventHook(BaseEventHook):
 
     @property
     def close_status(self):
-        close_status = self.config.get("close_status", None)
-
-        if close_status:
+        if close_status := self.config.get("close_status", None):
             try:
                 return self.project.issue_statuses.get(id=close_status)
             except IssueStatus.DoesNotExist:

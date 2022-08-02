@@ -15,7 +15,7 @@ class AutolinkPattern(markdown.inlinepatterns.Pattern):
 
         href = m.group(2)
         if not re.match('^(ftp|https?)://', href, flags=re.IGNORECASE):
-            href = 'http://%s' % href
+            href = f'http://{href}'
         el.set('href', self.unescape(href))
 
         el.text = markdown.util.AtomicString(m.group(2))

@@ -40,8 +40,7 @@ class BaseWebhookApiViewSet(GenericViewSet):
     def _get_project(self, request):
         project_id = request.GET.get("project", None)
         try:
-            project = Project.objects.get(id=project_id)
-            return project
+            return Project.objects.get(id=project_id)
         except (ValueError, Project.DoesNotExist):
             return None
 

@@ -35,9 +35,7 @@ try:
     import magic
 
     def url_fetcher(url, resource_type):
-        if url.startswith("data:"):
-            return fetch(url, resource_type)
-        return b""
+        return fetch(url, resource_type) if url.startswith("data:") else b""
 
 
     def svg_image_factory(fp, filename):
@@ -93,5 +91,4 @@ def get_thumbnail_url(file_obj, thumbnailer_size):
         return None
 
     path_url = thumbnail.url
-    thumb_url = get_absolute_url(path_url)
-    return thumb_url
+    return get_absolute_url(path_url)

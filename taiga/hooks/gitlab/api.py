@@ -64,10 +64,7 @@ class GitLabViewSet(BaseWebhookApiViewSet):
             except (AddrFormatError, ValueError):
                 matching_origin_ip = False
 
-        if not matching_origin_ip:
-            return False
-
-        return project_secret == secret_key
+        return project_secret == secret_key if matching_origin_ip else False
 
     def _get_event_name(self, request):
         payload = json.loads(request.body.decode("utf-8"))

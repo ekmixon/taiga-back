@@ -106,9 +106,7 @@ def _resolve_model(obj):
 
 def pretty_name(name):
     """Converts 'first_name' to 'First name'"""
-    if not name:
-        return ""
-    return name.replace("_", " ").capitalize()
+    return name.replace("_", " ").capitalize() if name else ""
 
 
 class RelationsList(list):
@@ -128,10 +126,7 @@ class NestedValidationError(ValidationError):
     """
 
     def __init__(self, message):
-        if isinstance(message, dict):
-            self._messages = [message]
-        else:
-            self._messages = message
+        self._messages = [message] if isinstance(message, dict) else message
 
     @property
     def messages(self):
@@ -343,8 +338,9 @@ class BaseSerializer(WritableField):
             if self.partial and source not in attrs:
                 continue
             try:
-                validate_method = getattr(self, "validate_%s" % field_name, None)
-                if validate_method:
+                if validate_method := getattr(
+                    self, f"validate_{field_name}", None
+                ):
                     attrs = validate_method(attrs, source)
             except ValidationError as err:
                 self._errors[field_name] = self._errors.get(field_name, []) + list(err.messages)
@@ -480,9 +476,9 @@ class BaseSerializer(WritableField):
             if self.default is not None and not self.partial:
                 # Note: partial updates shouldn't set defaults
                 value = copy.deepcopy(self.default)
+            elif self.required:
+                raise ValidationError(self.error_messages["required"])
             else:
-                if self.required:
-                    raise ValidationError(self.error_messages["required"])
                 return
 
         # Set the serializer object if it exists
@@ -500,25 +496,24 @@ class BaseSerializer(WritableField):
                 reverted_data = self.restore_fields(value, {})
                 if not self._errors:
                     into.update(reverted_data)
+        elif value in (None, ""):
+            into[(self.source or field_name)] = None
         else:
-            if value in (None, ""):
-                into[(self.source or field_name)] = None
-            else:
-                kwargs = {
-                    "instance": obj,
-                    "data": value,
-                    "context": self.context,
-                    "partial": self.partial,
-                    "many": self.many,
-                    "allow_add_remove": self.allow_add_remove
-                }
-                serializer = self.__class__(**kwargs)
+            kwargs = {
+                "instance": obj,
+                "data": value,
+                "context": self.context,
+                "partial": self.partial,
+                "many": self.many,
+                "allow_add_remove": self.allow_add_remove
+            }
+            serializer = self.__class__(**kwargs)
 
-                if serializer.is_valid():
-                    into[self.source or field_name] = serializer.object
-                else:
-                    # Propagate errors up to our parent
-                    raise NestedValidationError(serializer.errors)
+            if serializer.is_valid():
+                into[self.source or field_name] = serializer.object
+            else:
+                # Propagate errors up to our parent
+                raise NestedValidationError(serializer.errors)
 
     def get_identity(self, data):
         """
@@ -676,8 +671,9 @@ class Serializer(six.with_metaclass(SerializerMetaclass, BaseSerializer)):
                 continue
 
             try:
-                validate_method = getattr(self, 'validate_%s' % field_name, None)
-                if validate_method:
+                if validate_method := getattr(
+                    self, f'validate_{field_name}', None
+                ):
                     attrs = validate_method(attrs, source)
             except ValidationError as err:
                 self._errors[field_name] = self._errors.get(field_name, []) + list(err.messages)
@@ -746,7 +742,7 @@ class ModelSerializer((six.with_metaclass(SerializerMetaclass, BaseSerializer)))
 
         cls = self.opts.model
         assert cls is not None, \
-                "Serializer class '%s' is missing `model` Meta option" % self.__class__.__name__
+                    "Serializer class '%s' is missing `model` Meta option" % self.__class__.__name__
         opts = cls._meta.concrete_model._meta
         ret = OrderedDict()
         nested = bool(self.opts.depth)
@@ -757,8 +753,7 @@ class ModelSerializer((six.with_metaclass(SerializerMetaclass, BaseSerializer)))
             # If model is a child via multitable inheritance, use parent's pk
             pk_field = pk_field.remote_field.model._meta.pk
 
-        field = self.get_pk_field(pk_field)
-        if field:
+        if field := self.get_pk_field(pk_field):
             ret[pk_field.name] = field
 
         # Deal with forward relationships
@@ -958,7 +953,7 @@ class ModelSerializer((six.with_metaclass(SerializerMetaclass, BaseSerializer)))
 
         # put this below the ChoiceField because min_value isn't a valid initializer
         if issubclass(model_field.__class__, models.PositiveIntegerField) or\
-                issubclass(model_field.__class__, models.PositiveSmallIntegerField):
+                    issubclass(model_field.__class__, models.PositiveSmallIntegerField):
             kwargs["min_value"] = 0
 
         attribute_dict = {
@@ -975,7 +970,7 @@ class ModelSerializer((six.with_metaclass(SerializerMetaclass, BaseSerializer)))
         if model_field.__class__ in attribute_dict:
             attributes = attribute_dict[model_field.__class__]
             for attribute in attributes:
-                kwargs.update({attribute: getattr(model_field, attribute)})
+                kwargs[attribute] = getattr(model_field, attribute)
 
         if model_field.name in self.opts.i18n_fields:
             kwargs["i18n"] = True
@@ -987,8 +982,7 @@ class ModelSerializer((six.with_metaclass(SerializerMetaclass, BaseSerializer)))
 
     def perform_validation(self, attrs):
         for attr in attrs:
-            field = self.fields.get(attr, None)
-            if field:
+            if field := self.fields.get(attr, None):
                 field.required = True
         return super().perform_validation(attrs)
 
@@ -1031,7 +1025,6 @@ class ModelSerializer((six.with_metaclass(SerializerMetaclass, BaseSerializer)))
         """
         m2m_data = {}
         related_data = {}
-        nested_forward_relations = {}
         model = self.opts.model
         meta = self.opts.model._meta
 
@@ -1067,11 +1060,11 @@ class ModelSerializer((six.with_metaclass(SerializerMetaclass, BaseSerializer)))
             if field.name in attrs:
                 m2m_data[field.name] = attrs.pop(field.name)
 
-        # Nested forward relations - These need to be marked so we can save
-        # them before saving the parent model instance.
-        for field_name in attrs.keys():
-            if isinstance(self.fields.get(field_name, None), Serializer):
-                nested_forward_relations[field_name] = attrs[field_name]
+        nested_forward_relations = {
+            field_name: attrs[field_name]
+            for field_name in attrs.keys()
+            if isinstance(self.fields.get(field_name, None), Serializer)
+        }
 
         # Update an existing instance...
         if instance is not None:

@@ -49,7 +49,7 @@ class FileField(serializers.WritableField):
             # we restore the stripped '='s adding appending them until the chunk has
             # a length multiple of 4
             decoding_chunk += "=" * (-len(decoding_chunk) % 4)
-            decoded_data += base64.b64decode(decoding_chunk + "=")
+            decoded_data += base64.b64decode(f"{decoding_chunk}=")
 
         return ContentFile(decoded_data, name=data['name'])
 
@@ -74,7 +74,7 @@ class RelatedNoneSafeField(serializers.RelatedField):
                 try:
                     # Form data
                     value = data.getlist(field_name)
-                    if value == [''] or value == []:
+                    if value in [[''], []]:
                         raise KeyError
                 except AttributeError:
                     # Non-form data
@@ -139,7 +139,9 @@ class ProjectRelatedField(serializers.RelatedField):
             kwargs = {self.slug_field: data, "project": self.context['project']}
             return self.queryset.get(**kwargs)
         except ObjectDoesNotExist:
-            raise ValidationError(_("{}=\"{}\" not found in this project".format(self.slug_field, data)))
+            raise ValidationError(
+                _(f'{self.slug_field}=\"{data}\" not found in this project')
+            )
 
 
 class HistorySnapshotField(JSONField):
@@ -147,12 +149,10 @@ class HistorySnapshotField(JSONField):
         if data is None:
             return {}
 
-        owner = UserRelatedField().from_native(data.get("owner"))
-        if owner:
+        if owner := UserRelatedField().from_native(data.get("owner")):
             data["owner"] = owner.pk
 
-        assigned_to = UserRelatedField().from_native(data.get("assigned_to"))
-        if assigned_to:
+        if assigned_to := UserRelatedField().from_native(data.get("assigned_to")):
             data["assigned_to"] = assigned_to.pk
 
         return data
@@ -166,13 +166,7 @@ class HistoryUserField(JSONField):
         if len(data) < 2:
             return {}
 
-        user = UserRelatedField().from_native(data[0])
-
-        if user:
-            pk = user.pk
-        else:
-            pk = None
-
+        pk = user.pk if (user := UserRelatedField().from_native(data[0])) else None
         return {"pk": pk, "name": data[1]}
 
 

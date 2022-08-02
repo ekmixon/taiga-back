@@ -64,7 +64,7 @@ def emit_event_for_model(obj, *, type:str="change", channel:str="events",
     if hasattr(obj, "_excluded_events") and type in obj.excluded_events:
         return None
 
-    assert type in set(["create", "change", "delete"])
+    assert type in {"create", "change", "delete"}
     assert hasattr(obj, "project_id")
 
     if not content_type:
@@ -77,7 +77,7 @@ def emit_event_for_model(obj, *, type:str="change", channel:str="events",
     routing_key = "changes.project.{0}.{1}".format(projectid, app_name)
 
     if app_name in settings.INSTALLED_APPS:
-        routing_key = "%s.%s" % (routing_key, model_name)
+        routing_key = f"{routing_key}.{model_name}"
 
     data = {"type": type,
             "matches": content_type,
@@ -97,11 +97,7 @@ def emit_event_for_user_notification(user_id,
     """
     Sends a user notification event.
     """
-    return emit_event(
-        data,
-        "web_notifications.{}".format(user_id),
-        sessionid=session_id
-    )
+    return emit_event(data, f"web_notifications.{user_id}", sessionid=session_id)
 
 
 def emit_live_notification_for_model(obj, user, history, *, type:str="change", channel:str="events",
@@ -175,18 +171,18 @@ def emit_live_notification_for_model(obj, user, history, *, type:str="change", c
     return emit_event(
         {
             "title": title,
-            "body": "Project: {}\n{}".format(obj.project.name, body),
+            "body": f"Project: {obj.project.name}\n{body}",
             "url": url,
             "timeout": 10000,
-            "id": history.id
+            "id": history.id,
         },
-        "live_notifications.{}".format(user.id),
-        sessionid=sessionid
+        f"live_notifications.{user.id}",
+        sessionid=sessionid,
     )
 
 def emit_event_for_ids(ids, content_type:str, projectid:int, *,
                        type:str="change", channel:str="events", sessionid:str=None):
-    assert type in set(["create", "change", "delete"])
+    assert type in {"create", "change", "delete"}
     assert isinstance(ids, collections.Iterable)
     assert content_type, "'content_type' parameter is mandatory"
 

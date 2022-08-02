@@ -61,15 +61,15 @@ class Command(BaseCommand):
             try:
                 project = Project.objects.get(slug=project_slug)
             except Project.DoesNotExist:
-                raise CommandError("Project '{}' does not exist".format(project_slug))
+                raise CommandError(f"Project '{project_slug}' does not exist")
 
             if not is_project_admin(user, project):
-                self.stderr.write(self.style.ERROR(
-                    "ERROR: Not sending task because user '{}' doesn't have permissions to export '{}' project".format(
-                        username_or_email,
-                        project_slug
+                self.stderr.write(
+                    self.style.ERROR(
+                        f"ERROR: Not sending task because user '{username_or_email}' doesn't have permissions to export '{project_slug}' project"
                     )
-                ))
+                )
+
                 continue
 
             task = tasks.dump_project.delay(user, project, dump_format)
@@ -77,4 +77,6 @@ class Command(BaseCommand):
                 (project.pk, project.slug, task.id, dump_format),
                 countdown=settings.EXPORTS_TTL
             )
-            print("-> Sent task for dump of project '{}' as user {}".format(project.name, username_or_email))
+            print(
+                f"-> Sent task for dump of project '{project.name}' as user {username_or_email}"
+            )

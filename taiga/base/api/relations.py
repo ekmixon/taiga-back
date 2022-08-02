@@ -129,9 +129,7 @@ class RelatedField(WritableField):
         """
         desc = smart_text(obj)
         ident = smart_text(self.to_native(obj))
-        if desc == ident:
-            return desc
-        return "%s - %s" % (desc, ident)
+        return desc if desc == ident else f"{desc} - {ident}"
 
     def _get_queryset(self):
         return self._queryset
@@ -169,9 +167,7 @@ class RelatedField(WritableField):
 
     def get_default_value(self):
         default = super(RelatedField, self).get_default_value()
-        if self.many and default is None:
-            return []
-        return default
+        return [] if self.many and default is None else default
 
     ### Regular serializer stuff...
 
@@ -211,7 +207,7 @@ class RelatedField(WritableField):
                 try:
                     # Form data
                     value = data.getlist(field_name)
-                    if value == [""] or value == []:
+                    if value in [[""], []]:
                         raise KeyError
                 except AttributeError:
                     # Non-form data
@@ -256,9 +252,7 @@ class PrimaryKeyRelatedField(RelatedField):
         """
         desc = smart_text(obj)
         ident = smart_text(self.to_native(obj.pk))
-        if desc == ident:
-            return desc
-        return "%s - %s" % (desc, ident)
+        return desc if desc == ident else f"{desc} - {ident}"
 
     # TODO: Possibly change this to just take `obj`, through prob less performant
     def to_native(self, pk):
@@ -519,7 +513,7 @@ class HyperlinkedRelatedField(RelatedField):
             value = urlparse.urlparse(value).path
             prefix = get_script_prefix()
             if value.startswith(prefix):
-                value = "/" + value[len(prefix):]
+                value = f"/{value[len(prefix):]}"
 
         try:
             match = resolve(value)
@@ -640,8 +634,7 @@ class HyperlinkedIdentityField(Field):
             except NoReverseMatch:
                 pass
 
-        slug = getattr(obj, self.slug_field, None)
-        if slug:
+        if slug := getattr(obj, self.slug_field, None):
             # Only use slug lookup if a slug field exists on the model
             kwargs = {self.slug_url_kwarg: slug}
             try:

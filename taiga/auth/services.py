@@ -199,8 +199,7 @@ def normal_login_func(request):
     password = str(password) if password else None
 
     user = get_and_validate_user(username=username, password=password)
-    data = make_auth_response_data(user)
-    return data
+    return make_auth_response_data(user)
 
 
 register_auth_plugin("normal", normal_login_func)

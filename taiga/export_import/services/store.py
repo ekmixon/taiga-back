@@ -76,26 +76,25 @@ def reset_errors():
 ## PROJECT
 
 def store_project(data):
-    project_data = {}
-    for key, value in data.items():
-        excluded_fields = [
-            "default_points", "default_us_status", "default_task_status",
-            "default_priority", "default_severity", "default_issue_status",
-            "default_issue_type", "default_epic_status", "default_swimlane",
-            "memberships", "points",
-            "epic_statuses", "us_statuses", "task_statuses", "issue_statuses",
-            "priorities", "severities", "swimlanes",
-            "issue_types",
-            "epiccustomattributes", "userstorycustomattributes",
-            "taskcustomattributes", "issuecustomattributes",
-            "roles", "milestones",
-            "wiki_pages", "wiki_links",
-            "notify_policies",
-            "epics", "user_stories", "issues", "tasks",
-            "is_featured"
-        ]
-        if key not in excluded_fields:
-            project_data[key] = value
+    excluded_fields = [
+        "default_points", "default_us_status", "default_task_status",
+        "default_priority", "default_severity", "default_issue_status",
+        "default_issue_type", "default_epic_status", "default_swimlane",
+        "memberships", "points",
+        "epic_statuses", "us_statuses", "task_statuses", "issue_statuses",
+        "priorities", "severities", "swimlanes",
+        "issue_types",
+        "epiccustomattributes", "userstorycustomattributes",
+        "taskcustomattributes", "issuecustomattributes",
+        "roles", "milestones",
+        "wiki_pages", "wiki_links",
+        "notify_policies",
+        "epics", "user_stories", "issues", "tasks",
+        "is_featured"
+    ]
+    project_data = {
+        key: value for key, value in data.items() if key not in excluded_fields
+    }
 
     validator = validators.ProjectExportValidator(data=project_data)
     if validator.is_valid():
@@ -186,8 +185,7 @@ def _store_role(project, role):
 def store_roles(project, data):
     results = []
     for role in data.get("roles", []):
-        validator = _store_role(project, role)
-        if validator:
+        if validator := _store_role(project, role):
             results.append(validator)
 
     return results
@@ -217,8 +215,7 @@ def _store_membership(project, membership):
 def store_memberships(project, data):
     results = []
     for membership in data.get("memberships", []):
-        member = _store_membership(project, membership)
-        if member:
+        if member := _store_membership(project, membership):
             results.append(member)
     return results
 
@@ -238,11 +235,10 @@ def _store_project_attribute_value(project, data, field, serializer):
 
 
 def store_project_attributes_values(project, data, field, serializer):
-    result = []
-    for choice_data in data.get(field, []):
-        result.append(_store_project_attribute_value(project, choice_data, field,
-                                                     serializer))
-    return result
+    return [
+        _store_project_attribute_value(project, choice_data, field, serializer)
+        for choice_data in data.get(field, [])
+    ]
 
 
 ## SWIMLANES
@@ -279,10 +275,10 @@ def store_swimlane(project, data):
 
 
 def store_swimlanes(project, data):
-    results = []
-    for swimlane_data in data.get("swimlanes", []):
-        results.append(store_swimlane(project, swimlane_data))
-    return results
+    return [
+        store_swimlane(project, swimlane_data)
+        for swimlane_data in data.get("swimlanes", [])
+    ]
 
 
 ## DEFAULT PROJECT ATTRIBUTES VALUES
@@ -291,13 +287,11 @@ def store_default_project_attributes_values(project, data):
     def helper(project, field, related, data):
         if field in data:
             name = data[field]
-            if name:
-                value = related.all().get(name=name)
-            else:
-                value = None
+            value = related.all().get(name=name) if name else None
         else:
             value = related.all().first()
         setattr(project, field, value)
+
     helper(project, "default_points", project.points, data)
     helper(project, "default_issue_type", project.issue_types, data)
     helper(project, "default_issue_status", project.issue_statuses, data)
@@ -325,10 +319,12 @@ def _store_custom_attribute(project, data, field, serializer):
 
 
 def store_custom_attributes(project, data, field, serializer):
-    result = []
-    for custom_attribute_data in data.get(field, []):
-        result.append(_store_custom_attribute(project, custom_attribute_data, field, serializer))
-    return result
+    return [
+        _store_custom_attribute(
+            project, custom_attribute_data, field, serializer
+        )
+        for custom_attribute_data in data.get(field, [])
+    ]
 
 
 ## MILESTONE
@@ -420,8 +416,9 @@ def store_user_story(project, data):
         if not history_entries:
             take_snapshot(validator.object, user=validator.object.owner)
 
-        custom_attributes_values = data.get("custom_attributes_values", None)
-        if custom_attributes_values:
+        if custom_attributes_values := data.get(
+            "custom_attributes_values", None
+        ):
             custom_attributes = validator.object.project.userstorycustomattributes.all().values('id', 'name')
             custom_attributes_values = \
                 _use_id_instead_name_as_key_in_custom_attributes_values(custom_attributes,
@@ -440,8 +437,7 @@ def store_user_story(project, data):
 def store_user_stories(project, data):
     user_stories = {}
     for userstory in data.get("user_stories", []):
-        validator = store_user_story(project, userstory)
-        if validator:
+        if validator := store_user_story(project, userstory):
             user_stories[validator.object.ref] = validator.object
     return user_stories
 
@@ -527,8 +523,9 @@ def store_epic(project, data):
         if not history_entries:
             take_snapshot(validator.object, user=validator.object.owner)
 
-        custom_attributes_values = data.get("custom_attributes_values", None)
-        if custom_attributes_values:
+        if custom_attributes_values := data.get(
+            "custom_attributes_values", None
+        ):
             custom_attributes = validator.object.project.epiccustomattributes.all().values('id', 'name')
             custom_attributes_values = \
                 _use_id_instead_name_as_key_in_custom_attributes_values(custom_attributes,
@@ -588,8 +585,9 @@ def store_task(project, data):
         if not history_entries:
             take_snapshot(validator.object, user=validator.object.owner)
 
-        custom_attributes_values = data.get("custom_attributes_values", None)
-        if custom_attributes_values:
+        if custom_attributes_values := data.get(
+            "custom_attributes_values", None
+        ):
             custom_attributes = validator.object.project.taskcustomattributes.all().values('id', 'name')
             custom_attributes_values = \
                 _use_id_instead_name_as_key_in_custom_attributes_values(custom_attributes,
@@ -608,8 +606,7 @@ def store_task(project, data):
 def store_tasks(project, data):
     tasks = {}
     for task in data.get("tasks", []):
-        validator = store_task(project, task)
-        if validator:
+        if validator := store_task(project, task):
             tasks[validator.object.ref] = validator.object
     return tasks
 
@@ -661,8 +658,9 @@ def store_issue(project, data):
         if not history_entries:
             take_snapshot(validator.object, user=validator.object.owner)
 
-        custom_attributes_values = data.get("custom_attributes_values", None)
-        if custom_attributes_values:
+        if custom_attributes_values := data.get(
+            "custom_attributes_values", None
+        ):
             custom_attributes = validator.object.project.issuecustomattributes.all().values('id', 'name')
             custom_attributes_values = \
                 _use_id_instead_name_as_key_in_custom_attributes_values(custom_attributes,
@@ -680,8 +678,7 @@ def store_issue(project, data):
 def store_issues(project, data):
     issues = {}
     for issue in data.get("issues", []):
-        validator = store_issue(project, issue)
-        if validator:
+        if validator := store_issue(project, issue):
             issues[validator.object.ref] = validator.object
     return issues
 
@@ -717,10 +714,10 @@ def store_wiki_page(project, wiki_page):
 
 
 def store_wiki_pages(project, data):
-    results = []
-    for wiki_page in data.get("wiki_pages", []):
-        results.append(store_wiki_page(project, wiki_page))
-    return results
+    return [
+        store_wiki_page(project, wiki_page)
+        for wiki_page in data.get("wiki_pages", [])
+    ]
 
 
 ## WIKI LINKS
@@ -738,10 +735,10 @@ def store_wiki_link(project, wiki_link):
 
 
 def store_wiki_links(project, data):
-    results = []
-    for wiki_link in data.get("wiki_links", []):
-        results.append(store_wiki_link(project, wiki_link))
-    return results
+    return [
+        store_wiki_link(project, wiki_link)
+        for wiki_link in data.get("wiki_links", [])
+    ]
 
 
 ## TAGS COLORS
@@ -796,7 +793,7 @@ def _validate_if_owner_have_enough_space_to_this_project(owner, data):
     total_memberships = len([m for m in data.get("memberships", [])
                             if m.get("email", None) != data["owner"]])
 
-    total_memberships = total_memberships + 1  # 1 is the owner
+    total_memberships += 1
     (enough_slots, error_message) = users_service.has_available_slot_for_new_project(
         owner,
         is_private,

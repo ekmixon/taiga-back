@@ -51,7 +51,7 @@ class GithubClient:
             "X-GitHub-Media-Type": "github.v3"
         }
         if self.token:
-            headers['Authorization'] = 'token {}'.format(self.token)
+            headers['Authorization'] = f'token {self.token}'
 
         if query_params is None:
             query_params = {}
@@ -63,9 +63,9 @@ class GithubClient:
         response = requests.get(url, params=query_params, headers=headers)
 
         if response.status_code == 401:
-            raise Exception("Unauthorized: %s at %s" % (response.text, url), response)
+            raise Exception(f"Unauthorized: {response.text} at {url}", response)
         if response.status_code != 200:
-            raise Exception("Resource Unavailable: %s at %s" % (response.text, url), response)
+            raise Exception(f"Resource Unavailable: {response.text} at {url}", response)
 
         return response.json()
 
@@ -88,21 +88,26 @@ class GithubImporter:
             })
             page += 1
 
-            for repo in repos:
-                projects.append({
+            projects.extend(
+                {
                     "id": repo['full_name'],
                     "name": repo['full_name'],
                     "description": repo['description'],
                     "is_private": repo['private'],
-                })
+                }
+                for repo in repos
+            )
 
             if len(repos) < 100:
                 break
         return projects
 
     def list_users(self, project_full_name):
-        collaborators = self._client.get("/repos/{}/collaborators".format(project_full_name))
-        collaborators = [self._client.get("/users/{}".format(u['login'])) for u in collaborators]
+        collaborators = self._client.get(f"/repos/{project_full_name}/collaborators")
+        collaborators = [
+            self._client.get(f"/users/{u['login']}") for u in collaborators
+        ]
+
         return [{"id": u['id'],
                  "username": u['login'],
                  "full_name": u.get('name', u['login']),
@@ -126,7 +131,7 @@ class GithubImporter:
         return default
 
     def import_project(self, project_full_name, options={"keep_external_reference": False, "template": "kanban", "type": "user_stories"}):
-        repo = self._client.get('/repos/{}'.format(project_full_name))
+        repo = self._client.get(f'/repos/{project_full_name}')
         project = self._import_project_data(repo, options)
         if options.get('type', None) == "user_stories":
             self._import_user_stories_data(project, repo, options)
@@ -144,42 +149,46 @@ class GithubImporter:
         project_template = ProjectTemplate.objects.get(slug=options['template'])
 
         if options['type'] == "user_stories":
-            project_template.us_statuses = []
-            project_template.us_statuses.append({
-                "name": "Open",
-                "slug": "open",
-                "is_closed": False,
-                "is_archived": False,
-                "color": "#ff8a84",
-                "wip_limit": None,
-                "order": 1,
-            })
-            project_template.us_statuses.append({
-                "name": "Closed",
-                "slug": "closed",
-                "is_closed": True,
-                "is_archived": False,
-                "color": "#669900",
-                "wip_limit": None,
-                "order": 2,
-            })
+            project_template.us_statuses = [
+                {
+                    "name": "Open",
+                    "slug": "open",
+                    "is_closed": False,
+                    "is_archived": False,
+                    "color": "#ff8a84",
+                    "wip_limit": None,
+                    "order": 1,
+                },
+                {
+                    "name": "Closed",
+                    "slug": "closed",
+                    "is_closed": True,
+                    "is_archived": False,
+                    "color": "#669900",
+                    "wip_limit": None,
+                    "order": 2,
+                },
+            ]
+
             project_template.default_options["us_status"] = "Open"
         elif options['type'] == "issues":
-            project_template.issue_statuses = []
-            project_template.issue_statuses.append({
-                "name": "Open",
-                "slug": "open",
-                "is_closed": False,
-                "color": "#ff8a84",
-                "order": 1,
-            })
-            project_template.issue_statuses.append({
-                "name": "Closed",
-                "slug": "closed",
-                "is_closed": True,
-                "color": "#669900",
-                "order": 2,
-            })
+            project_template.issue_statuses = [
+                {
+                    "name": "Open",
+                    "slug": "open",
+                    "is_closed": False,
+                    "color": "#ff8a84",
+                    "order": 1,
+                },
+                {
+                    "name": "Closed",
+                    "slug": "closed",
+                    "is_closed": True,
+                    "color": "#669900",
+                    "order": 2,
+                },
+            ]
+
             project_template.default_options["issue_status"] = "Open"
 
         project_template.roles.append({
@@ -191,9 +200,9 @@ class GithubImporter:
         })
 
         tags_colors = []
-        for label in self._client.get("/repos/{}/labels".format(repo['full_name'])):
+        for label in self._client.get(f"/repos/{repo['full_name']}/labels"):
             name = label['name'].lower()
-            color = "#{}".format(label['color'])
+            color = f"#{label['color']}"
             tags_colors.append([name, color])
 
         project = Project.objects.create(
@@ -211,7 +220,7 @@ class GithubImporter:
 
         import_service.create_memberships(options.get('users_bindings', {}), project, self._user, "github")
 
-        for milestone in self._client.get("/repos/{}/milestones".format(repo['full_name'])):
+        for milestone in self._client.get(f"/repos/{repo['full_name']}/milestones"):
             taiga_milestone = Milestone.objects.create(
                 name=milestone['title'],
                 owner=users_bindings.get(milestone.get('creator', {}).get('id', None), self._user),
@@ -230,19 +239,20 @@ class GithubImporter:
 
         page = 1
         while True:
-            issues = self._client.get("/repos/{}/issues".format(repo['full_name']), {
-                "state": "all",
-                "sort": "created",
-                "direction": "asc",
-                "page": page,
-                "per_page": 100
-            })
+            issues = self._client.get(
+                f"/repos/{repo['full_name']}/issues",
+                {
+                    "state": "all",
+                    "sort": "created",
+                    "direction": "asc",
+                    "page": page,
+                    "per_page": 100,
+                },
+            )
+
             page += 1
             for issue in issues:
-                tags = []
-                for label in issue['labels']:
-                    tags.append(label['name'].lower())
-
+                tags = [label['name'].lower() for label in issue['labels']]
                 assigned_to = users_bindings.get(issue['assignee']['id'] if issue['assignee'] else None, None)
 
                 external_reference = None
@@ -291,19 +301,20 @@ class GithubImporter:
 
         page = 1
         while True:
-            issues = self._client.get("/repos/{}/issues".format(repo['full_name']), {
-                "state": "all",
-                "sort": "created",
-                "direction": "asc",
-                "page": page,
-                "per_page": 100
-            })
+            issues = self._client.get(
+                f"/repos/{repo['full_name']}/issues",
+                {
+                    "state": "all",
+                    "sort": "created",
+                    "direction": "asc",
+                    "page": page,
+                    "per_page": 100,
+                },
+            )
+
             page += 1
             for issue in issues:
-                tags = []
-                for label in issue['labels']:
-                    tags.append(label['name'].lower())
-
+                tags = [label['name'].lower() for label in issue['labels']]
                 assigned_to = users_bindings.get(issue['assignee']['id'] if issue['assignee'] else None, None)
 
                 external_reference = None
@@ -348,10 +359,11 @@ class GithubImporter:
 
         page = 1
         while True:
-            comments = self._client.get("/repos/{}/issues/comments".format(repo['full_name']), {
-                "page": page,
-                "per_page": 100
-            })
+            comments = self._client.get(
+                f"/repos/{repo['full_name']}/issues/comments",
+                {"page": page, "per_page": 100},
+            )
+
             page += 1
 
             for comment in comments:
@@ -377,10 +389,11 @@ class GithubImporter:
         page = 1
         all_events = []
         while True:
-            events = self._client.get("/repos/{}/issues/events".format(repo['full_name']), {
-                "page": page,
-                "per_page": 100
-            })
+            events = self._client.get(
+                f"/repos/{repo['full_name']}/issues/events",
+                {"page": page, "per_page": 100},
+            )
+
             page += 1
             all_events = all_events + events
 
@@ -501,10 +514,7 @@ class GithubImporter:
                     cumulative_data["milestone"] = taiga_milestone.id
                     cumulative_data['milestone_name'] = taiga_milestone.name
                 except Milestone.DoesNotExist:
-                    if cumulative_data['milestone'] == 0:
-                        cumulative_data['milestone'] = -1
-                    else:
-                        cumulative_data['milestone'] = 0
+                    cumulative_data['milestone'] = -1 if cumulative_data['milestone'] == 0 else 0
                     cumulative_data['milestone_name'] = event['milestone']['title']
                 result['change_new']["milestone"] = cumulative_data['milestone']
                 result['update_values']['milestone'][str(cumulative_data['milestone'])] = cumulative_data['milestone_name']
@@ -523,8 +533,9 @@ class GithubImporter:
     @classmethod
     def get_auth_url(cls, client_id, callback_uri=None):
         if callback_uri is None:
-            return "https://github.com/login/oauth/authorize?client_id={}&scope=user,repo".format(client_id)
-        return "https://github.com/login/oauth/authorize?client_id={}&scope=user,repo&redirect_uri={}".format(client_id, callback_uri)
+            return f"https://github.com/login/oauth/authorize?client_id={client_id}&scope=user,repo"
+
+        return f"https://github.com/login/oauth/authorize?client_id={client_id}&scope=user,repo&redirect_uri={callback_uri}"
 
     @classmethod
     def get_access_token(cls, client_id, client_secret, code):
@@ -539,11 +550,10 @@ class GithubImporter:
 
         if result.status_code > 299:
             raise InvalidAuthResult()
-        else:
-            try:
-                return dict(parse_qsl(result.content))[b'access_token'].decode('utf-8')
-            except:
-                raise InvalidAuthResult()
+        try:
+            return dict(parse_qsl(result.content))[b'access_token'].decode('utf-8')
+        except:
+            raise InvalidAuthResult()
 
 
 class AssignedEventHandler:
@@ -570,10 +580,7 @@ class AssignedEventHandler:
             self.result['update_values']["users"][str(self.cumulative_data['assigned_to'])] = self.cumulative_data['assigned_to_name']
 
     def generate_change_new(self, event, user):
-        if user is None:
-            self.result['change_new']["assigned_to"] = 0
-        else:
-            self.result['change_new']["assigned_to"] = user.id
+        self.result['change_new']["assigned_to"] = 0 if user is None else user.id
 
     def update_cumulative_data(self, event, user):
         self.cumulative_data['assigned_to_github_id'] = event['assignee']['id']

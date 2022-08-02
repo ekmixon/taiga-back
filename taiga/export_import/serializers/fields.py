@@ -52,16 +52,12 @@ class FileField(Field):
 
 class ContentTypeField(Field):
     def to_value(self, obj):
-        if obj:
-            return [obj.app_label, obj.model]
-        return None
+        return [obj.app_label, obj.model] if obj else None
 
 
 class UserRelatedField(Field):
     def to_value(self, obj):
-        if obj:
-            return obj.email
-        return None
+        return obj.email if obj else None
 
 
 class UserPkField(Field):
@@ -79,9 +75,7 @@ class SlugRelatedField(Field):
         super().__init__(*args, **kwargs)
 
     def to_value(self, obj):
-        if obj:
-            return getattr(obj, self.slug_field)
-        return None
+        return getattr(obj, self.slug_field) if obj else None
 
 
 class HistoryUserField(Field):

@@ -48,7 +48,7 @@ class Command(BaseCommand):
             url = GithubImporter.get_auth_url(
                 settings.IMPORTERS.get('github', {}).get('client_id', None)
             )
-            print("Go to here and come with your code (in the redirected url): {}".format(url))
+            print(f"Go to here and come with your code (in the redirected url): {url}")
             code = input("Code: ")
             access_data = GithubImporter.get_access_token(
                 settings.IMPORTERS.get('github', {}).get('client_id', None),
@@ -64,7 +64,7 @@ class Command(BaseCommand):
         else:
             print("Select the project to import:")
             for project in importer.list_projects():
-                print("- {}: {}".format(project['id'], project['name']))
+                print(f"- {project['id']}: {project['name']}")
             project_id = input("Project id: ")
 
         users_bindings = {}
@@ -74,14 +74,17 @@ class Command(BaseCommand):
         for user in importer.list_users(project_id):
             while True:
                 if user['detected_user'] is not None:
-                    print("User automatically detected: {} as {}".format(user['full_name'], user['detected_user']))
+                    print(
+                        f"User automatically detected: {user['full_name']} as {user['detected_user']}"
+                    )
+
                     users_bindings[user['id']] = user['detected_user']
                     break
 
                 if not options.get('ask_for_users', False):
                     break
 
-                username_or_email = input("{}: ".format(user['full_name'] or user['username']))
+                username_or_email = input(f"{user['full_name'] or user['username']}: ")
                 if username_or_email == "":
                     break
                 try:

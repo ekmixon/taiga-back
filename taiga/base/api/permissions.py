@@ -46,7 +46,7 @@ class ResourcePermission(object):
         self.view = view
 
     def check_permissions(self, action:str, obj:object=None):
-        permset = getattr(self, "{}_perms".format(action))
+        permset = getattr(self, f"{action}_perms")
 
         if isinstance(permset, (list, tuple)):
             permset = reduce(lambda acc, v: acc & v, permset)
@@ -119,14 +119,10 @@ class Or(PermissionOperator):
     """
 
     def check_permissions(self, *args, **kwargs):
-        valid = False
-
-        for component in self.components:
-            if component.check_permissions(*args, **kwargs):
-                valid = True
-                break
-
-        return valid
+        return any(
+            component.check_permissions(*args, **kwargs)
+            for component in self.components
+        )
 
 
 class And(PermissionOperator):
@@ -135,14 +131,10 @@ class And(PermissionOperator):
     """
 
     def check_permissions(self, *args, **kwargs):
-        valid = True
-
-        for component in self.components:
-            if not component.check_permissions(*args, **kwargs):
-                valid = False
-                break
-
-        return valid
+        return all(
+            component.check_permissions(*args, **kwargs)
+            for component in self.components
+        )
 
 
 ######################################################################
@@ -185,10 +177,7 @@ class IsProjectAdmin(PermissionComponent):
 
 class IsObjectOwner(PermissionComponent):
     def check_permissions(self, request, view, obj=None):
-        if obj.owner is None:
-            return False
-
-        return obj.owner == request.user
+        return False if obj.owner is None else obj.owner == request.user
 
 
 ######################################################################

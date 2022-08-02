@@ -55,16 +55,12 @@ class WikiLinksPattern(Pattern):
         if not slug:
             project = getattr(self.project, "project", None)
             slug = getattr(project, "slug", None)
-            if not slug:
-                return
+        if not slug:
+            return
 
         url = resolve("wiki", slug, slugify(label))
 
-        if m.group(3):
-            title = m.group(3).strip()[1:]
-        else:
-            title = label
-
+        title = m.group(3).strip()[1:] if m.group(3) else label
         a = etree.Element("a")
         a.text = title
         a.set("href", url)
@@ -94,8 +90,8 @@ class RelativeLinksTreeprocessor(Treeprocessor):
                 if not slug:
                     project = getattr(self.project, "project", None)
                     slug = getattr(project, "slug", None)
-                    if not slug:
-                        continue
+                if not slug:
+                    continue
 
                 url = resolve("wiki", slug, href)
                 a.set("href", url)
@@ -103,5 +99,5 @@ class RelativeLinksTreeprocessor(Treeprocessor):
 
             elif href and href[0] == "/":
                 # [some link](/some/link) -> <a href="FRONT_HOST/some/link" ...
-                url = "{}{}".format(resolve("home"), href[1:])
+                url = f'{resolve("home")}{href[1:]}'
                 a.set("href", url)

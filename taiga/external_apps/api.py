@@ -69,8 +69,7 @@ class ApplicationToken(ModelCrudViewSet):
 
         queryset = models.ApplicationToken.objects.filter(user=self.request.user)
 
-        application_id = self.request.QUERY_PARAMS.get("application", None)
-        if application_id:
+        if application_id := self.request.QUERY_PARAMS.get("application", None):
             queryset = queryset.filter(application_id=application_id)
         return queryset
 

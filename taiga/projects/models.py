@@ -119,8 +119,7 @@ class Membership(models.Model):
         ordering = ["project", "user__full_name", "user__username", "user__email", "email"]
 
     def get_related_people(self):
-        related_people = get_user_model().objects.filter(id=self.user.id)
-        return related_people
+        return get_user_model().objects.filter(id=self.user.id)
 
     def clean(self):
         # TODO: Review and do it more robust
@@ -331,7 +330,7 @@ class Project(ProjectDefaults, TaggedMixin, TagsColorsMixin, models.Model):
             with advisory_lock("project-creation"):
                 base_slug = self.name
                 if settings.DEFAULT_PROJECT_SLUG_PREFIX:
-                    base_slug = "{}-{}".format(self.owner.username, self.name)
+                    base_slug = f"{self.owner.username}-{self.name}"
                 self.slug = slugify_uniquely(base_slug, self.__class__)
                 super().save(*args, **kwargs)
         else:
@@ -441,14 +440,7 @@ class Project(ProjectDefaults, TaggedMixin, TagsColorsMixin, models.Model):
         if user_stories is None:
             user_stories = self.user_stories.all()
 
-        # Get point instance that represent a null/undefined
-        # The current model allows duplicate values. Because
-        # of it, we should get all poins with None as value
-        # and use the first one.
-        # In case of that not exists, creates one for avoid
-        # unexpected errors.
-        none_points = list(self.points.filter(value=None))
-        if none_points:
+        if none_points := list(self.points.filter(value=None)):
             null_points_value = none_points[0]
         else:
             name = slugify_uniquely_for_queryset("?", self.points.all(), slugfield="name")

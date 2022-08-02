@@ -73,8 +73,11 @@ if settings.DEBUG:
         from django.views.static import serve
 
         return [
-            url(r'^%s(?P<path>.*)$' % re.escape(prefix.lstrip('/')), serve,
-                {'document_root': settings.MEDIA_ROOT})
+            url(
+                f"^{re.escape(prefix.lstrip('/'))}(?P<path>.*)$",
+                serve,
+                {'document_root': settings.MEDIA_ROOT},
+            )
         ]
 
     # Hardcoded only for development server

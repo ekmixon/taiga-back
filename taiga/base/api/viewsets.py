@@ -114,7 +114,7 @@ class ViewSetMixin(object):
         # generation can pick out these bits of information from a
         # resolved URL.
         view.cls = cls
-        view.suffix = initkwargs.get('suffix', None)
+        view.suffix = initkwargs.get('suffix')
         return view
 
     def initialize_request(self, request, *args, **kargs):
@@ -137,8 +137,7 @@ class NestedViewSetMixin(object):
         return self._filter_queryset_by_parents_lookups(super().get_queryset())
 
     def _filter_queryset_by_parents_lookups(self, queryset):
-        parents_query_dict = self._get_parents_query_dict()
-        if parents_query_dict:
+        if parents_query_dict := self._get_parents_query_dict():
             return queryset.filter(**parents_query_dict)
         else:
             return queryset

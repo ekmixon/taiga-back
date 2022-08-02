@@ -55,12 +55,12 @@ class EventsPushBackend(base.BaseEventsPushBackend):
         try:
             connection.connect()
         except ConnectionRefusedError:
-            err_msg = "EventsPushBackend: Unable to connect with RabbitMQ (connection refused) at {}".format(
-                                                                                                     self.url)
+            err_msg = f"EventsPushBackend: Unable to connect with RabbitMQ (connection refused) at {self.url}"
+
             log.error(err_msg, exc_info=True)
         except AccessRefused:
-            err_msg = "EventsPushBackend: Unable to connect with RabbitMQ (access refused) at {}".format(
-                                                                                                 self.url)
+            err_msg = f"EventsPushBackend: Unable to connect with RabbitMQ (access refused) at {self.url}"
+
             log.error(err_msg, exc_info=True)
         else:
             try:

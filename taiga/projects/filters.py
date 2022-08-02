@@ -33,9 +33,9 @@ class DiscoverModeFilterBackend(FilterBackend):
 
         if "discover_mode" in request.QUERY_PARAMS:
             field_data = request.QUERY_PARAMS["discover_mode"]
-            discover_mode = self._special_values_dict.get(field_data, field_data)
-
-            if discover_mode:
+            if discover_mode := self._special_values_dict.get(
+                field_data, field_data
+            ):
                 # discover_mode enabled
                 qs = qs.filter(anon_permissions__contains=["view_project"],
                                blocked_code__isnull=True)
@@ -57,9 +57,10 @@ class CanViewProjectObjFilterBackend(FilterBackend):
             try:
                 project_id = int(request.QUERY_PARAMS["project"])
             except:
-                logger.error("Filtering project diferent value than an integer: {}".format(
-                    request.QUERY_PARAMS["project"]
-                ))
+                logger.error(
+                    f'Filtering project diferent value than an integer: {request.QUERY_PARAMS["project"]}'
+                )
+
                 raise exc.BadRequest(_("'project' must be an integer value."))
 
         filter_expression = get_filter_expression_can_view_projects(
@@ -73,9 +74,7 @@ class CanViewProjectObjFilterBackend(FilterBackend):
 
 class QFilterBackend(FilterBackend):
     def filter_queryset(self, request, queryset, view):
-        # NOTE: See migtration 0033_text_search_indexes
-        q = request.QUERY_PARAMS.get('q', None)
-        if q:
+        if q := request.QUERY_PARAMS.get('q', None):
             tsquery = "to_tsquery('simple', %s)"
             tsquery_params = [to_tsquery(q)]
             tsvector = """

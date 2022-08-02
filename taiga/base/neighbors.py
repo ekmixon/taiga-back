@@ -95,9 +95,7 @@ class NeighborsSerializerMixin(serializers.LightSerializer):
     neighbors = MethodField()
 
     def serialize_neighbor(self, neighbor):
-        if neighbor:
-            return NeighborSerializer(neighbor).data
-        return None
+        return NeighborSerializer(neighbor).data if neighbor else None
 
     def get_neighbors(self, obj):
         view, request = self.context.get("view", None), self.context.get("request", None)

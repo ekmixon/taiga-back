@@ -40,9 +40,11 @@ class JiraAgileImporter(JiraImporterCommon):
                  "importer_type": "agile"} for board in self._client.get_agile('/board')['values']]
 
     def list_issue_types(self, project_id):
-        board_project = self._client.get_agile("/board/{}/project".format(project_id))['values'][0]
-        statuses = self._client.get("/project/{}/statuses".format(board_project['id']))
-        return statuses
+        board_project = self._client.get_agile(f"/board/{project_id}/project")[
+            'values'
+        ][0]
+
+        return self._client.get(f"/project/{board_project['id']}/statuses")
 
     def import_project(self, project_id, options=None):
         self.resolve_user_bindings(options)
@@ -56,8 +58,8 @@ class JiraAgileImporter(JiraImporterCommon):
         return project
 
     def _import_project_data(self, project_id, options):
-        project = self._client.get_agile("/board/{}".format(project_id))
-        project_config = self._client.get_agile("/board/{}/configuration".format(project_id))
+        project = self._client.get_agile(f"/board/{project_id}")
+        project_config = self._client.get_agile(f"/board/{project_id}/configuration")
         if project['type'] == "scrum":
             project_template = ProjectTemplate.objects.get(slug="scrum")
             options['type'] = "scrum"
@@ -71,8 +73,7 @@ class JiraAgileImporter(JiraImporterCommon):
         project_template.task_statuses = OrderedDict()
         project_template.issue_statuses = OrderedDict()
 
-        counter = 0
-        for column in project_config['columnConfig']['columns']:
+        for counter, column in enumerate(project_config['columnConfig']['columns']):
             column_slug = slugify(column['name'])
             project_template.epic_statuses[column_slug] = {
                 "name": column['name'],
@@ -110,8 +111,6 @@ class JiraAgileImporter(JiraImporterCommon):
                 "wip_limit": None,
                 "order": counter,
             }
-            counter += 1
-
         project_template.epic_statuses = list(project_template.epic_statuses.values())
         project_template.us_statuses = list(project_template.us_statuses.values())
         project_template.task_statuses = list(project_template.task_statuses.values())
@@ -148,7 +147,7 @@ class JiraAgileImporter(JiraImporterCommon):
         import_service.create_memberships(options.get('users_bindings', {}), project, self._user, "main")
 
         if project_template.slug == "scrum":
-            for sprint in self._client.get_agile("/board/{}/sprint".format(project_id))['values']:
+            for sprint in self._client.get_agile(f"/board/{project_id}/sprint")['values']:
                 start_datetime = sprint.get('startDate', None)
                 end_datetime = sprint.get('startDate', None)
                 start_date = datetime.date.today()
@@ -174,21 +173,28 @@ class JiraAgileImporter(JiraImporterCommon):
 
     def _import_user_stories_data(self, project_id, project, options):
         users_bindings = options.get('users_bindings', {})
-        project_conf = self._client.get_agile("/board/{}/configuration".format(project_id))
+        project_conf = self._client.get_agile(f"/board/{project_id}/configuration")
         if options['type'] == "scrum":
             estimation_field = project_conf['estimation']['field']['fieldId']
 
         counter = 0
         offset = 0
         while True:
-            issues = self._client.get_agile("/board/{}/issue".format(project_id), {
-                "startAt": offset,
-                "expand": "changelog",
-            })
+            issues = self._client.get_agile(
+                f"/board/{project_id}/issue",
+                {
+                    "startAt": offset,
+                    "expand": "changelog",
+                },
+            )
+
             offset += issues['maxResults']
 
             for issue in issues['issues']:
-                issue['fields']['issuelinks'] += self._client.get("/issue/{}/remotelink".format(issue['key']))
+                issue['fields']['issuelinks'] += self._client.get(
+                    f"/issue/{issue['key']}/remotelink"
+                )
+
                 assigned_to = users_bindings.get(issue['fields']['assignee']['key'] if issue['fields']['assignee'] else None, None)
                 owner = users_bindings.get(issue['fields']['creator']['key'] if issue['fields']['creator'] else None, self._user)
 
@@ -268,15 +274,22 @@ class JiraAgileImporter(JiraImporterCommon):
         counter = 0
         offset = 0
         while True:
-            issues = self._client.get_agile("/board/{}/issue".format(project_id), {
-                "jql": "parent={}".format(issue['key']),
-                "startAt": offset,
-                "expand": "changelog",
-            })
+            issues = self._client.get_agile(
+                f"/board/{project_id}/issue",
+                {
+                    "jql": f"parent={issue['key']}",
+                    "startAt": offset,
+                    "expand": "changelog",
+                },
+            )
+
             offset += issues['maxResults']
 
             for issue in issues['issues']:
-                issue['fields']['issuelinks'] += self._client.get("/issue/{}/remotelink".format(issue['key']))
+                issue['fields']['issuelinks'] += self._client.get(
+                    f"/issue/{issue['key']}/remotelink"
+                )
+
                 assigned_to = users_bindings.get(issue['fields']['assignee']['key'] if issue['fields']['assignee'] else None, None)
                 owner = users_bindings.get(issue['fields']['creator']['key'] if issue['fields']['creator'] else None, self._user)
 
@@ -307,7 +320,10 @@ class JiraAgileImporter(JiraImporterCommon):
                 )
                 take_snapshot(task, comment="", user=None, delete=False)
                 for subtask in issue['fields']['subtasks']:
-                    print("WARNING: Ignoring subtask {} because parent isn't a User Story".format(subtask['key']))
+                    print(
+                        f"WARNING: Ignoring subtask {subtask['key']} because parent isn't a User Story"
+                    )
+
                 self._import_comments(task, issue, options)
                 self._import_attachments(task, issue, options)
                 self._import_changelog(project, task, issue, options)
@@ -321,14 +337,21 @@ class JiraAgileImporter(JiraImporterCommon):
         counter = 0
         offset = 0
         while True:
-            issues = self._client.get_agile("/board/{}/epic".format(project_id), {
-                "startAt": offset,
-            })
+            issues = self._client.get_agile(
+                f"/board/{project_id}/epic",
+                {
+                    "startAt": offset,
+                },
+            )
+
             offset += issues['maxResults']
 
             for epic in issues['values']:
-                issue = self._client.get_agile("/issue/{}".format(epic['key']))
-                issue['fields']['issuelinks'] += self._client.get("/issue/{}/remotelink".format(issue['key']))
+                issue = self._client.get_agile(f"/issue/{epic['key']}")
+                issue['fields']['issuelinks'] += self._client.get(
+                    f"/issue/{issue['key']}/remotelink"
+                )
+
                 assigned_to = users_bindings.get(issue['fields']['assignee']['key'] if issue['fields']['assignee'] else None, None)
                 owner = users_bindings.get(issue['fields']['creator']['key'] if issue['fields']['creator'] else None, self._user)
 
@@ -359,12 +382,16 @@ class JiraAgileImporter(JiraImporterCommon):
 
                 take_snapshot(epic, comment="", user=None, delete=False)
                 for subtask in issue['fields']['subtasks']:
-                    print("WARNING: Ignoring subtask {} because parent isn't a User Story".format(subtask['key']))
+                    print(
+                        f"WARNING: Ignoring subtask {subtask['key']} because parent isn't a User Story"
+                    )
+
                 self._import_comments(epic, issue, options)
                 self._import_attachments(epic, issue, options)
-                issue_with_changelog = self._client.get("/issue/{}".format(issue['key']), {
-                    "expand": "changelog"
-                })
+                issue_with_changelog = self._client.get(
+                    f"/issue/{issue['key']}", {"expand": "changelog"}
+                )
+
                 self._import_changelog(project, epic, issue_with_changelog, options)
                 counter += 1
 

@@ -126,7 +126,7 @@ class OrderByFilterMixin(QueryParamsFilterMixin):
             return queryset
 
         if raw_fieldname in ["owner", "-owner", "assigned_to", "-assigned_to"]:
-            raw_fieldname = "{}__full_name".format(raw_fieldname)
+            raw_fieldname = f"{raw_fieldname}__full_name"
 
         # We need to add a default order if raw_fieldname gives rows with the same value
         return super().filter_queryset(request, queryset.order_by(raw_fieldname, "-id"), view)
@@ -165,9 +165,10 @@ class PermissionBasedFilterBackend(FilterBackend):
             try:
                 project_id = int(request.QUERY_PARAMS["project"])
             except:
-                logger.error("Filtering project diferent value than an integer: {}".format(
-                    request.QUERY_PARAMS["project"]
-                ))
+                logger.error(
+                    f'Filtering project diferent value than an integer: {request.QUERY_PARAMS["project"]}'
+                )
+
                 raise exc.BadRequest(_("'project' must be an integer value."))
 
         qs = queryset
@@ -290,8 +291,10 @@ class MembersFilterBackend(PermissionBasedFilterBackend):
             try:
                 project_id = int(request.QUERY_PARAMS["project"])
             except:
-                logger.error("Filtering project diferent value than an integer: {}".format(
-                    request.QUERY_PARAMS["project"]))
+                logger.error(
+                    f'Filtering project diferent value than an integer: {request.QUERY_PARAMS["project"]}'
+                )
+
                 raise exc.BadRequest(_("'project' must be an integer value."))
 
         if project_id:
@@ -355,9 +358,7 @@ class BaseIsProjectAdminFilterBackend(object):
         if project_id:
             memberships_qs = memberships_qs.filter(project_id=project_id)
 
-        projects_list = [membership.project_id for membership in memberships_qs]
-
-        return projects_list
+        return [membership.project_id for membership in memberships_qs]
 
 
 class IsProjectAdminFilterBackend(FilterBackend, BaseIsProjectAdminFilterBackend):
@@ -414,24 +415,21 @@ class BaseRelatedFieldsFilter(FilterBackend):
                     return self._special_values_dict[value]
             raise exc.BadRequest()
 
-        values = set([x.strip() for x in query_param_value.split(",")])
+        values = {x.strip() for x in query_param_value.split(",")}
         values = map(_transform_value, values)
         return list(values)
 
     def _get_queryparams(self, params, mode=''):
         param_name = self.exclude_param_name if mode == 'exclude' else \
-            self.param_name or self.filter_name
-        raw_value = params.get(param_name, None)
-        if raw_value:
+                self.param_name or self.filter_name
+        if raw_value := params.get(param_name, None):
             value = self._prepare_filter_data(raw_value)
-            if None in value:
-                qs_in_kwargs = {
-                    "{}__in".format(self.filter_name): [v for v in value if v is not None]}
-                qs_isnull_kwargs = {"{}__isnull".format(self.filter_name): True}
-                return Q(**qs_in_kwargs) | Q(**qs_isnull_kwargs)
-            else:
-                return Q(**{"{}__in".format(self.filter_name): value})
+            if None not in value:
+                return Q(**{f"{self.filter_name}__in": value})
 
+            qs_in_kwargs = {f"{self.filter_name}__in": [v for v in value if v is not None]}
+            qs_isnull_kwargs = {f"{self.filter_name}__isnull": True}
+            return Q(**qs_in_kwargs) | Q(**qs_isnull_kwargs)
         return None
 
     def _prepare_filter_query(self, query):
@@ -447,8 +445,7 @@ class BaseRelatedFieldsFilter(FilterBackend):
         }
 
         for mode, prepare_method in operations.items():
-            query = self._get_queryparams(request.QUERY_PARAMS, mode=mode)
-            if query:
+            if query := self._get_queryparams(request.QUERY_PARAMS, mode=mode):
                 queryset = queryset.filter(prepare_method(query))
 
         return super().filter_queryset(request, queryset, view)
@@ -480,35 +477,32 @@ class AssignedUsersFilter(FilterModelAssignedUsers, BaseRelatedFieldsFilter):
 
     def filter_queryset(self, request, queryset, view):
         if self.filter_name in request.QUERY_PARAMS or \
-                self.exclude_param_name in request.QUERY_PARAMS:
-            projects_ids_subquery = self.filter_user_projects(request)
-            if projects_ids_subquery:
+                    self.exclude_param_name in request.QUERY_PARAMS:
+            if projects_ids_subquery := self.filter_user_projects(request):
                 queryset = queryset.filter(project_id__in=projects_ids_subquery)
 
         return super().filter_queryset(request, queryset, view)
 
     def _get_queryparams(self, params, mode=''):
         param_name = self.exclude_param_name if mode == 'exclude' else self.param_name or \
-                                                                       self.filter_name
-        raw_value = params.get(param_name, None)
-        if raw_value:
+                                                                           self.filter_name
+        if raw_value := params.get(param_name, None):
             value = self._prepare_filter_data(raw_value)
             UserStoryModel = apps.get_model("userstories", "UserStory")
 
-            if None in value:
-                value.remove(None)
-                assigned_users_ids = UserStoryModel.objects.order_by().filter(
-                    assigned_users__isnull=True,
-                    id=OuterRef('pk')).values('pk')
-
-                assigned_user_filter_none = Q(pk__in=Subquery(assigned_users_ids))
-                assigned_to_filter_none = Q(assigned_to__isnull=True)
-
-                return (self.get_assigned_users_filter(UserStoryModel, value)
-                        | Q(assigned_user_filter_none, assigned_to_filter_none))
-            else:
+            if None not in value:
                 return self.get_assigned_users_filter(UserStoryModel, value)
 
+            value.remove(None)
+            assigned_users_ids = UserStoryModel.objects.order_by().filter(
+                assigned_users__isnull=True,
+                id=OuterRef('pk')).values('pk')
+
+            assigned_user_filter_none = Q(pk__in=Subquery(assigned_users_ids))
+            assigned_to_filter_none = Q(assigned_to__isnull=True)
+
+            return (self.get_assigned_users_filter(UserStoryModel, value)
+                    | Q(assigned_user_filter_none, assigned_to_filter_none))
         return None
 
 
@@ -524,8 +518,10 @@ class UserStoryStatusesFilter(StatusesFilter):
             try:
                 project_id = int(request.QUERY_PARAMS["project"])
             except ValueError:
-                logger.error("Filtering project different value tpphan an integer: {}".format(
-                    request.QUERY_PARAMS["project"]))
+                logger.error(
+                    f'Filtering project different value tpphan an integer: {request.QUERY_PARAMS["project"]}'
+                )
+
                 raise exc.BadRequest(_("'project' must be an integer value."))
 
         if project_id:
@@ -568,11 +564,7 @@ class TagsFilter(FilterBackend):
 
     def _get_tags_queryparams(self, params, mode=''):
         param_name = self.exclude_param_name if mode == "exclude" else self.filter_name
-        tags = params.get(param_name, None)
-        if tags:
-            return tags.split(",")
-
-        return None
+        return tags.split(",") if (tags := params.get(param_name, None)) else None
 
     def _prepare_filter_query(self, tags):
         queries = [Q(tags__contains=[tag]) for tag in tags]
@@ -597,8 +589,9 @@ class TagsFilter(FilterBackend):
         }
 
         for mode, prepare_method in operations.items():
-            query = self._get_tags_queryparams(request.QUERY_PARAMS, mode=mode)
-            if query:
+            if query := self._get_tags_queryparams(
+                request.QUERY_PARAMS, mode=mode
+            ):
                 queryset = queryset.filter(prepare_method(query))
 
         return super().filter_queryset(request, queryset, view)
@@ -612,15 +605,13 @@ class WatchersFilter(FilterBackend):
             self.filter_name = filter_name
 
     def _get_watchers_queryparams(self, params):
-        watchers = params.get(self.filter_name, None)
-        if watchers:
+        if watchers := params.get(self.filter_name, None):
             return watchers.split(",")
 
         return None
 
     def filter_queryset(self, request, queryset, view):
-        query_watchers = self._get_watchers_queryparams(request.QUERY_PARAMS)
-        if query_watchers:
+        if query_watchers := self._get_watchers_queryparams(request.QUERY_PARAMS):
             WatchedModel = apps.get_model("notifications", "Watched")
             watched_type = ContentType.objects.get_for_model(queryset.model)
 
@@ -719,8 +710,7 @@ class MilestoneEstimatedFinishFilter(BaseDateFilter):
 
 class QFilter(FilterBackend):
     def filter_queryset(self, request, queryset, view):
-        q = request.QUERY_PARAMS.get('q', None)
-        if q:
+        if q := request.QUERY_PARAMS.get('q', None):
             table = queryset.model._meta.db_table
             where_clause = ("""
                 to_tsvector('simple',
@@ -749,11 +739,12 @@ class RoleFilter(BaseRelatedFieldsFilter):
         }
 
         for mode, qs_method in operations.items():
-            query = self._get_queryparams(request.QUERY_PARAMS, mode=mode)
-            if query:
-                memberships = Membership.objects.filter(query).exclude(
-                    user__isnull=True).values_list("user_id", flat=True)
-                if memberships:
+            if query := self._get_queryparams(request.QUERY_PARAMS, mode=mode):
+                if (
+                    memberships := Membership.objects.filter(query)
+                    .exclude(user__isnull=True)
+                    .values_list("user_id", flat=True)
+                ):
                     queryset = queryset.filter(qs_method(Q(assigned_to__in=memberships)))
 
         return FilterBackend.filter_queryset(self, request, queryset, view)
@@ -773,11 +764,12 @@ class UserStoriesRoleFilter(FilterModelAssignedUsers, BaseRelatedFieldsFilter):
         }
 
         for mode, qs_method in operations.items():
-            query = self._get_queryparams(request.QUERY_PARAMS, mode=mode)
-            if query:
-                memberships = Membership.objects.filter(query).exclude(user__isnull=True). \
-                    values_list("user_id", flat=True)
-                if memberships:
+            if query := self._get_queryparams(request.QUERY_PARAMS, mode=mode):
+                if (
+                    memberships := Membership.objects.filter(query)
+                    .exclude(user__isnull=True)
+                    .values_list("user_id", flat=True)
+                ):
                     user_story_model = apps.get_model("userstories", "UserStory")
                     queryset = queryset.filter(
                         qs_method(Q(self.get_assigned_users_filter(user_story_model, memberships)))

@@ -60,9 +60,9 @@ class PivotalClient:
         response = requests.get(url, params=query_params, headers=headers)
 
         if response.status_code == 401:
-            raise Exception("Unauthorized: %s at %s" % (response.text, url), response)
+            raise Exception(f"Unauthorized: {response.text} at {url}", response)
         if response.status_code != 200:
-            raise Exception("Resource Unavailable: %s at %s" % (response.text, url), response)
+            raise Exception(f"Resource Unavailable: {response.text} at {url}", response)
 
         return response.json()
 
@@ -70,7 +70,8 @@ class PivotalClient:
         headers = {
             'X-TrackerToken': self.token
         }
-        url = "https://www.pivotaltracker.com/file_attachments/{}/download".format(attachment_id)
+        url = f"https://www.pivotaltracker.com/file_attachments/{attachment_id}/download"
+
         response = requests.get(url, headers=headers)
         return response.content
 
@@ -84,7 +85,7 @@ class PivotalImporter:
         return self._client.me['projects']
 
     def list_users(self, project_id):
-        return self._client.get("/projects/{}/memberships".format(project_id))
+        return self._client.get(f"/projects/{project_id}/memberships")
 
     def import_project(self, project_id, options={"template": "scrum", "users_bindings": {}, "keep_external_reference": False}):
         (project, project_data) = self._import_project_data(project_id, options)
@@ -96,42 +97,51 @@ class PivotalImporter:
 
     def _import_project_data(self, project_id, options):
         project_data = self._client.get(
-            "/projects/{}".format(project_id),
+            f"/projects/{project_id}",
             {
-                "fields": ",".join([
-                    "point_scale",
-                    "name",
-                    "description",
-                    "labels(name)",
-                ])
-            }
+                "fields": ",".join(
+                    [
+                        "point_scale",
+                        "name",
+                        "description",
+                        "labels(name)",
+                    ]
+                )
+            },
         )
+
         project_data['iterations'] = self._client.get(
-            "/projects/{}/iterations".format(project_id),
+            f"/projects/{project_id}/iterations",
             {
-                "fields": ",".join([
-                    "number",
-                    "start",
-                    "finish",
-                    "stories",
-                ])
-            }
+                "fields": ",".join(
+                    [
+                        "number",
+                        "start",
+                        "finish",
+                        "stories",
+                    ]
+                )
+            },
         )
+
         project_data['epics'] = self._client.get(
-            "/projects/{}/epics".format(project_data['id']),
+            f"/projects/{project_data['id']}/epics",
             {
-                "fields": ",".join([
-                    "name",
-                    "label",
-                    "description",
-                    "comments(text,file_attachments,google_attachments,person,created_at)",
-                    "follower_ids",
-                    "created_at",
-                    "updated_at",
-                    "url",
-                ])
-            }
+                "fields": ",".join(
+                    [
+                        "name",
+                        "label",
+                        "description",
+                        "comments(text,file_attachments,google_attachments,person,created_at)",
+                        "follower_ids",
+                        "created_at",
+                        "updated_at",
+                        "url",
+                    ]
+                )
+            },
         )
+
 
         project_template = ProjectTemplate.objects.get(slug=options['template'])
         project_template.is_epics_activated = True
@@ -142,14 +152,12 @@ class PivotalImporter:
             "order": 1,
         }]
 
-        counter = 2
-        for points in project_data['point_scale'].split(","):
-            project_template.points.append({
-                "value": int(points),
-                "name": points,
-                "order": counter
-            })
-            counter += 1
+        project_template.points.extend(
+            {"value": int(points), "name": points, "order": counter}
+            for counter, points in enumerate(
+                project_data['point_scale'].split(","), start=2
+            )
+        )
 
         project_template.us_statuses.append({
             "name": "Unscheduled",
@@ -225,21 +233,23 @@ class PivotalImporter:
         })
         project_template.default_options["us_status"] = "Unscheduled"
 
-        project_template.task_statuses = []
-        project_template.task_statuses.append({
-            "name": "Incomplete",
-            "slug": "incomplete",
-            "is_closed": False,
-            "color": "#ff8a84",
-            "order": 1,
-        })
-        project_template.task_statuses.append({
-            "name": "Complete",
-            "slug": "complete",
-            "is_closed": True,
-            "color": "#669900",
-            "order": 2,
-        })
+        project_template.task_statuses = [
+            {
+                "name": "Incomplete",
+                "slug": "incomplete",
+                "is_closed": False,
+                "color": "#ff8a84",
+                "order": 1,
+            },
+            {
+                "name": "Complete",
+                "slug": "complete",
+                "is_closed": True,
+                "color": "#669900",
+                "order": 2,
+            },
+        ]
+
         project_template.default_options["task_status"] = "Incomplete"
 
         main_permissions = project_template.roles[0]['permissions']
@@ -289,13 +299,14 @@ class PivotalImporter:
 
         for iteration in project_data['iterations']:
             milestone = Milestone.objects.create(
-                name="Sprint {}".format(iteration['number']),
-                slug="sprint-{}".format(iteration['number']),
+                name=f"Sprint {iteration['number']}",
+                slug=f"sprint-{iteration['number']}",
                 owner=self._user,
                 project=project,
                 estimated_start=iteration['start'][:10],
                 estimated_finish=iteration['finish'][:10],
             )
+
             Milestone.objects.filter(id=milestone.id).update(
                 created_date=iteration['start'],
                 modified_date=iteration['start'],

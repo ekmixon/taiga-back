@@ -105,14 +105,8 @@ def get_component(obj, attr_name):
     Given an object, and an attribute name,
     return that attribute on the object.
     """
-    if isinstance(obj, dict):
-        val = obj.get(attr_name)
-    else:
-        val = getattr(obj, attr_name)
-
-    if is_simple_callable(val):
-        return val()
-    return val
+    val = obj.get(attr_name) if isinstance(obj, dict) else getattr(obj, attr_name)
+    return val() if is_simple_callable(val) else val
 
 
 def readable_datetime_formats(formats):
@@ -176,11 +170,7 @@ class Field(object):
 
         self.source = source
 
-        if label is not None:
-            self.label = smart_text(label)
-        else:
-            self.label = None
-
+        self.label = smart_text(label) if label is not None else None
         self.help_text = help_text
         self._errors = []
         self._value = None
@@ -192,9 +182,7 @@ class Field(object):
         return self._errors
 
     def widget_html(self):
-        if not self.widget:
-            return ""
-        return self.widget.render(self._name, self._value)
+        return self.widget.render(self._name, self._value) if self.widget else ""
 
     def label_tag(self):
         return "<label for=\"%s\">%s:</label>" % (self._name, self.label)
@@ -265,9 +253,7 @@ class Field(object):
         """
         Returns a dictionary of attributes to be used when serializing to xml.
         """
-        if self.type_name:
-            return {"type": self.type_name}
-        return {}
+        return {"type": self.type_name} if self.type_name else {}
 
     def metadata(self):
         metadata = OrderedDict()
@@ -323,7 +309,7 @@ class WritableField(Field):
 
         messages = {}
         for c in reversed(self.__class__.__mro__):
-            messages.update(getattr(c, "default_error_messages", {}))
+            messages |= getattr(c, "default_error_messages", {})
         messages.update(error_messages or {})
         self.error_messages = messages
 
@@ -343,9 +329,7 @@ class WritableField(Field):
         return result
 
     def get_default_value(self):
-        if is_simple_callable(self.default):
-            return self.default()
-        return self.default
+        return self.default() if is_simple_callable(self.default) else self.default
 
     def validate(self, value):
         if value in validators.EMPTY_VALUES and self.required:
@@ -396,9 +380,9 @@ class WritableField(Field):
             if self.default is not None and not self.partial:
                 # Note: partial updates shouldn't set defaults
                 native = self.get_default_value()
+            elif self.required:
+                raise ValidationError(self.error_messages["required"])
             else:
-                if self.required:
-                    raise ValidationError(self.error_messages["required"])
                 return
 
         value = self.from_native(native)
@@ -496,9 +480,7 @@ class BooleanField(WritableField):
     def from_native(self, value):
         if value in ("true", "t", "True", "1"):
             return True
-        if value in ("false", "f", "False", "0"):
-            return False
-        return bool(value)
+        return False if value in ("false", "f", "False", "0") else bool(value)
 
 
 class CharField(WritableField):
@@ -515,10 +497,7 @@ class CharField(WritableField):
             self.validators.append(validators.MaxLengthValidator(max_length))
 
     def from_native(self, value):
-        if value in validators.EMPTY_VALUES:
-            return ""
-
-        return smart_text(value)
+        return "" if value in validators.EMPTY_VALUES else smart_text(value)
 
     def to_native(self, value):
         ret = super(CharField, self).to_native(value)
@@ -533,7 +512,7 @@ class URLField(CharField):
     type_label = "url"
 
     def __init__(self, **kwargs):
-        if not "validators" in kwargs:
+        if "validators" not in kwargs:
             kwargs["validators"] = [validators.URLValidator()]
         super(URLField, self).__init__(**kwargs)
 
@@ -604,9 +583,8 @@ class ChoiceField(WritableField):
                 for k2, v2 in v:
                     if value == smart_text(k2):
                         return True
-            else:
-                if value == smart_text(k) or value == k:
-                    return True
+            elif value in [smart_text(k), k]:
+                return True
         return False
 
     def from_native(self, value):
@@ -648,9 +626,7 @@ class EmailField(CharField):
 
     def from_native(self, value):
         ret = super(EmailField, self).from_native(value)
-        if ret is None:
-            return None
-        return ret.strip()
+        return None if ret is None else ret.strip()
 
 
 class RegexField(CharField):
@@ -806,7 +782,7 @@ class DateTimeField(WritableField):
         if self.format.lower() == ISO_8601:
             ret = value.isoformat()
             if ret.endswith("+00:00"):
-                ret = ret[:-6] + "Z"
+                ret = f"{ret[:-6]}Z"
             return ret
         return value.strftime(self.format)
 
@@ -1072,11 +1048,10 @@ class ImageField(FileField):
         # have to read the data into memory.
         if hasattr(data, "temporary_file_path"):
             file = data.temporary_file_path()
+        elif hasattr(data, "read"):
+            file = six.BytesIO(data.read())
         else:
-            if hasattr(data, "read"):
-                file = six.BytesIO(data.read())
-            else:
-                file = six.BytesIO(data["content"])
+            file = six.BytesIO(data["content"])
 
         try:
             # load() could spot a truncated JPEG, but it loads the entire

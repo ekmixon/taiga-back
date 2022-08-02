@@ -14,17 +14,17 @@ def create_github_system_user(apps, schema_editor):
     db_alias = schema_editor.connection.alias
     random_hash = uuid.uuid4().hex
     user = User.objects.using(db_alias).create(
-        username="bitbucket-{}".format(random_hash),
-        email="bitbucket-{}@taiga.io".format(random_hash),
+        username=f"bitbucket-{random_hash}",
+        email=f"bitbucket-{random_hash}@taiga.io",
         full_name="BitBucket",
         is_active=False,
         is_system=True,
         bio="",
     )
-    f = open("taiga/hooks/bitbucket/migrations/logo.png", "rb")
-    user.photo.save("logo.png", File(f))
-    user.save()
-    f.close()
+
+    with open("taiga/hooks/bitbucket/migrations/logo.png", "rb") as f:
+        user.photo.save("logo.png", File(f))
+        user.save()
 
 
 class Migration(migrations.Migration):

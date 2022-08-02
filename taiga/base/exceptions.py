@@ -127,7 +127,7 @@ class Throttled(APIException):
             self.detail = detail or self.default_detail
             self.wait = None
         else:
-            format = "%s%s" % ((detail or self.default_detail), self.extra_detail)
+            format = f"{detail or self.default_detail}{self.extra_detail}"
             self.detail = format % (wait, wait != 1 and "s" or "")
             self.wait = math.ceil(wait)
 

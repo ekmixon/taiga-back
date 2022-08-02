@@ -43,11 +43,11 @@ import resource
 def dump_project(self, user, project, dump_format):
     try:
         if dump_format == "gzip":
-            path = "exports/{}/{}-{}.json.gz".format(project.pk, project.slug, self.request.id)
+            path = f"exports/{project.pk}/{project.slug}-{self.request.id}.json.gz"
             with default_storage.open(path, mode="wb") as outfile:
                 services.render_project(project, gzip.GzipFile(fileobj=outfile))
         else:
-            path = "exports/{}/{}-{}.json".format(project.pk, project.slug, self.request.id)
+            path = f"exports/{project.pk}/{project.slug}-{self.request.id}.json"
             with default_storage.open(path, mode="wb") as outfile:
                 services.render_project(project, outfile)
 
@@ -80,9 +80,9 @@ def dump_project(self, user, project, dump_format):
 @app.task
 def delete_project_dump(project_id, project_slug, task_id, dump_format):
     if dump_format == "gzip":
-        path = "exports/{}/{}-{}.json.gz".format(project_id, project_slug, task_id)
+        path = f"exports/{project_id}/{project_slug}-{task_id}.json.gz"
     else:
-        path = "exports/{}/{}-{}.json".format(project_id, project_slug, task_id)
+        path = f"exports/{project_id}/{project_slug}-{task_id}.json"
     default_storage.delete(path)
 
 

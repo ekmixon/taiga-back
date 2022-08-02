@@ -54,24 +54,33 @@ class AsanaImporter:
         for ws in self._client.workspaces.find_all():
             for project in self._client.projects.find_all(workspace=ws['gid']):
                 project = self._client.projects.find_by_id(project['gid'])
-                projects.append({
-                    "id": project['gid'],
-                    "name": "{}/{}".format(ws['name'], project['name']),
-                    "description": project['notes'],
-                    "is_private": True,
-                })
+                projects.append(
+                    {
+                        "id": project['gid'],
+                        "name": f"{ws['name']}/{project['name']}",
+                        "description": project['notes'],
+                        "is_private": True,
+                    }
+                )
+
         return projects
 
     def list_users(self, project_id):
         users = []
         for ws in self._client.workspaces.find_all():
-            for user in self._client.users.find_by_workspace(ws['gid'], fields=["gid", "name", "email", "photo"]):
-                users.append({
+            users.extend(
+                {
                     "id": user["gid"],
                     "full_name": user['name'],
                     "detected_user": self._get_user(user),
-                    "avatar": user.get('photo', None) and user['photo'].get('image_60x60', None)
-                })
+                    "avatar": user.get('photo', None)
+                    and user['photo'].get('image_60x60', None),
+                }
+                for user in self._client.users.find_by_workspace(
+                    ws['gid'], fields=["gid", "name", "email", "photo"]
+                )
+            )
+
         return users
 
     def _get_user(self, user, default=None):
@@ -99,42 +108,46 @@ class AsanaImporter:
         }
         project_template = ProjectTemplate.objects.get(slug=options.get('template', 'scrum'))
 
-        project_template.us_statuses = []
-        project_template.us_statuses.append({
-            "name": "Open",
-            "slug": "open",
-            "is_closed": False,
-            "is_archived": False,
-            "color": "#ff8a84",
-            "wip_limit": None,
-            "order": 1,
-        })
-        project_template.us_statuses.append({
-            "name": "Closed",
-            "slug": "closed",
-            "is_closed": True,
-            "is_archived": False,
-            "color": "#669900",
-            "wip_limit": None,
-            "order": 2,
-        })
+        project_template.us_statuses = [
+            {
+                "name": "Open",
+                "slug": "open",
+                "is_closed": False,
+                "is_archived": False,
+                "color": "#ff8a84",
+                "wip_limit": None,
+                "order": 1,
+            },
+            {
+                "name": "Closed",
+                "slug": "closed",
+                "is_closed": True,
+                "is_archived": False,
+                "color": "#669900",
+                "wip_limit": None,
+                "order": 2,
+            },
+        ]
+
         project_template.default_options["us_status"] = "Open"
 
-        project_template.task_statuses = []
-        project_template.task_statuses.append({
-            "name": "Open",
-            "slug": "open",
-            "is_closed": False,
-            "color": "#ff8a84",
-            "order": 1,
-        })
-        project_template.task_statuses.append({
-            "name": "Closed",
-            "slug": "closed",
-            "is_closed": True,
-            "color": "#669900",
-            "order": 2,
-        })
+        project_template.task_statuses = [
+            {
+                "name": "Open",
+                "slug": "open",
+                "is_closed": False,
+                "color": "#ff8a84",
+                "order": 1,
+            },
+            {
+                "name": "Closed",
+                "slug": "closed",
+                "is_closed": True,
+                "color": "#669900",
+                "order": 2,
+            },
+        ]
+
         project_template.default_options["task_status"] = "Open"
 
         project_template.roles.append({
@@ -196,21 +209,14 @@ class AsanaImporter:
             if task['parent']:
                 continue
 
-            tags = []
-            for tag in task['tags']:
-                tags.append(tag['name'].lower())
-
+            tags = [tag['name'].lower() for tag in task['tags']]
             assigned_to = None
-            assignee = task.get('assignee', {})
-            if assignee:
+            if assignee := task.get('assignee', {}):
                 assigned_to = users_bindings.get(assignee.get('gid', None))
 
             external_reference = None
             if options.get('keep_external_reference', False):
-                external_url = "https://app.asana.com/0/{}/{}".format(
-                    project['gid'],
-                    task['gid'],
-                )
+                external_url = f"https://app.asana.com/0/{project['gid']}/{task['gid']}"
                 external_reference = ["asana", external_url]
 
             us = UserStory.objects.create(
@@ -232,7 +238,7 @@ class AsanaImporter:
                 us.custom_attributes_values.save()
 
             for follower in task['followers']:
-                follower_user = users_bindings.get(follower['gid'], None)
+                follower_user = users_bindings.get(follower['gid'])
                 if follower_user is not None:
                     us.add_watcher(follower_user)
 
@@ -258,19 +264,14 @@ class AsanaImporter:
         users_bindings = {
             str(gid): user for gid, user in options.get('users_bindings', {}).items()
         }
-        tags = []
-        for tag in task['tags']:
-            tags.append(tag['name'].lower())
+        tags = [tag['name'].lower() for tag in task['tags']]
         due_date_field = taiga_project.taskcustomattributes.first()
 
         assigned_to = users_bindings.get(task.get('assignee', {}).get('gid', None)) or None
 
         external_reference = None
         if options.get('keep_external_reference', False):
-            external_url = "https://app.asana.com/0/{}/{}".format(
-                assana_project['gid'],
-                task['gid'],
-            )
+            external_url = f"https://app.asana.com/0/{assana_project['gid']}/{task['gid']}"
             external_reference = ["asana", external_url]
 
         taiga_task = Task.objects.create(
@@ -292,7 +293,7 @@ class AsanaImporter:
             taiga_task.custom_attributes_values.save()
 
         for follower in task['followers']:
-            follower_user = users_bindings.get(follower['gid'], None)
+            follower_user = users_bindings.get(follower['gid'])
             if follower_user is not None:
                 taiga_task.add_watcher(follower_user)
 

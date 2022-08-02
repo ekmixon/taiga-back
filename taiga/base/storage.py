@@ -58,6 +58,6 @@ class FileSystemStorage(storage.FileSystemStorage):
                 if e.errno != errno.EEXIST:
                     raise
         if not os.path.isdir(directory):
-            raise IOError("%s exists and is not a directory." % directory)
+            raise IOError(f"{directory} exists and is not a directory.")
 
         return super().open(name, mode=mode)

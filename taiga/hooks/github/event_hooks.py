@@ -29,7 +29,7 @@ class BaseGitHubEventHook():
         if wiki_text is None:
             wiki_text = ""
 
-        template = "\g<1>[GitHub#\g<2>]({}/issues/\g<2>)\g<3>".format(project_url)
+        template = f"\g<1>[GitHub#\g<2>]({project_url}/issues/\g<2>)\g<3>"
         return re.sub(r"(\s|^)#(\d+)(\s|$)", template, wiki_text, 0, re.M)
 
 
@@ -90,18 +90,19 @@ class IssueCommentEventHook(BaseGitHubEventHook, BaseIssueCommentEventHook):
 
 class PushEventHook(BaseGitHubEventHook, BasePushEventHook):
     def get_data(self):
-        result = []
         github_user = self.payload.get('sender', {})
         commits = self.payload.get("commits", [])
-        for commit in filter(None, commits):
-            result.append({
+        return [
+            {
                 "user_id": github_user.get('id', None),
                 "user_name": github_user.get('login', None),
                 "user_url": github_user.get('html_url', None),
                 "commit_id": commit.get("id", None),
                 "commit_url": commit.get("url", None),
                 "commit_message": commit.get("message").strip(),
-                "commit_short_message": commit.get("message").split("\n")[0].strip(),
-            })
-
-        return result
+                "commit_short_message": commit.get("message")
+                .split("\n")[0]
+                .strip(),
+            }
+            for commit in filter(None, commits)
+        ]

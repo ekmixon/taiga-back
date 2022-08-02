@@ -49,10 +49,10 @@ class Command(BaseCommand):
         dst_dir = options["dst_dir"]
 
         if not os.path.exists(dst_dir):
-            raise CommandError("Directory {} does not exist.".format(dst_dir))
+            raise CommandError(f"Directory {dst_dir} does not exist.")
 
         if not os.path.isdir(dst_dir):
-            raise CommandError("'{}' must be a directory, not a file.".format(dst_dir))
+            raise CommandError(f"'{dst_dir}' must be a directory, not a file.")
 
         project_slugs = options["project_slugs"]
 
@@ -60,15 +60,15 @@ class Command(BaseCommand):
             try:
                 project = Project.objects.get(slug=project_slug)
             except Project.DoesNotExist:
-                raise CommandError("Project '{}' does not exist".format(project_slug))
+                raise CommandError(f"Project '{project_slug}' does not exist")
 
             if options["format"] == "gzip":
-                dst_file = os.path.join(dst_dir, "{}.json.gz".format(project_slug))
+                dst_file = os.path.join(dst_dir, f"{project_slug}.json.gz")
                 with gzip.GzipFile(dst_file, "wb") as f:
                     render_project(project, f)
             else:
-                dst_file = os.path.join(dst_dir, "{}.json".format(project_slug))
+                dst_file = os.path.join(dst_dir, f"{project_slug}.json")
                 with open(dst_file, "wb") as f:
                     render_project(project, f)
 
-            print("-> Generate dump of project '{}' in '{}'".format(project.name, dst_file))
+            print(f"-> Generate dump of project '{project.name}' in '{dst_file}'")
